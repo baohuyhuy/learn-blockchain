@@ -1,23 +1,37 @@
+import sys
 import time
-import msvcrt  # For Windows keyboard input detection
+from getch import getch
 from currencies import convert_currency
 from tokens import get_token_price
 
+if sys.platform == 'win32':
+    import msvcrt
+    def is_key_pressed():
+        return msvcrt.kbhit()
+
+    def get_key():
+        return msvcrt.getch().decode('utf-8')
+else:
+    import select
+    import tty
+    import termios
+
+    def is_key_pressed():
+        dr, _, _ = select.select([sys.stdin], [], [], 0)
+        return bool(dr)
+
+    def get_key():
+        return sys.stdin.read(1)
 
 def monitor_price_changes(token_id: str, currency: str) -> bool:
-    """
-    Continuously monitor token price changes and print updates.
-
-    Args:
-        token_id (str): The token symbol to monitor (e.g., 'BTC', 'ETH')
-        currency (str): The currency code to convert the price to (e.g., 'USD')
-
-    Returns:
-        bool: True if user wants to monitor another token, False to exit program
-    """
     print(f"Starting to monitor {token_id} price...")
     print("Press 'x' to go back.")
     last_price = None
+
+    if sys.platform != 'win32':
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        tty.setcbreak(fd)
 
     try:
         while True:
@@ -37,19 +51,18 @@ def monitor_price_changes(token_id: str, currency: str) -> bool:
 
                 last_price = current_price
 
-            # Check for keyboard input
-            if msvcrt.kbhit():
-                try:
-                    key = msvcrt.getch().decode('utf-8').lower()
-                    if key == 'x':
-                        print(
-                            "\nStopping current monitoring, returning to token selection...")
+            start_time = time.time()
+            while time.time() - start_time < 1:
+                if is_key_pressed():
+                    key = get_key()
+                    if key.lower() == 'x':
+                        print("\nStopping current monitoring, returning to token selection...")
                         return True
-                except UnicodeDecodeError as e:
-                    pass
-
-            time.sleep(1)
+                time.sleep(0.05)
 
     except KeyboardInterrupt:
         print("\nMonitoring stopped.")
         return True
+    finally:
+        if sys.platform != 'win32':
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
