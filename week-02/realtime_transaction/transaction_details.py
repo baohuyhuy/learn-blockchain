@@ -83,16 +83,24 @@ class SolanaTransactionDetailsFetcher:
         """
         Get and parse transaction details from signature
         """
-        print(f"\nRECEIVED SIGNATURE, PARSING TRANSACTION DETAILS")
-        print("-" * 50)
 
         try:
-            tx = await self.client.get_transaction(tx_sig=signature, max_supported_transaction_version=0)
-            if tx is None:
-                raise Exception("Failed to fetch transaction data")
+            tx_response = await self.client.get_transaction(
+                tx_sig=signature, 
+                max_supported_transaction_version=0,
+                commitment="finalized" # Explicitly set commitment
+            )
+            
+            if tx_response is None:
+                print(f"Failed to fetch transaction data: get_transaction returned None.")
+                return None
 
-            print("Transaction raw data retrieved successfully!")
-            return tx
+            if tx_response.value is None:
+                print(f"Transaction data not available. It might not be finalized or may not exist.")
+            else:
+                print(f"Transaction raw data retrieved successfully.")
+            
+            return tx_response
         except Exception as e:
-            print(f"Error fetching transaction: {e}\n")
+            print(f"Error fetching transaction details for {signature}: {e}\n")
             return None

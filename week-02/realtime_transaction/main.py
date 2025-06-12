@@ -25,7 +25,7 @@ async def main():
         network = "mainnet"
         print("Selected Mainnet")
     elif network_choice == "4":
-        network = "devnet"
+        network = "local"
         print("Selected Local")
     else:
         network = "devnet"
