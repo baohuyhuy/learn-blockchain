@@ -1,5 +1,4 @@
 import requests
-import json
 from datetime import datetime
 import time
 from CONSTANTS import *
@@ -24,6 +23,12 @@ class SolanaWallet:
         
         self.client = Client(endpoint)
         self.wallet_address = Pubkey.from_string(wallet_address)
+        self.rest_time = 0
+
+        if endpoint == MAINNET_ENDPOINT:
+            self.rest_time = MAINNET_REST_TIME
+        elif endpoint == DEVNET_ENDPOINT:
+            self.rest_time = DEVNET_REST_TIME
 
     def __get_sol_balance(self) -> float:
         lamports = 0
@@ -116,17 +121,29 @@ class SolanaWallet:
     def __get_transaction_info(self, signature) -> dict:
         sig = Signature.from_string(signature)
         transaction = None
-        try:
-            transaction = self.client.get_transaction(sig, encoding="jsonParsed", commitment="finalized", max_supported_transaction_version=0)
-        except SolanaRpcException as e:
-            if hasattr(e, "__cause__") and isinstance(e.__cause__, HTTPStatusError):
-                cause = e.__cause__
-                if (cause.response.status_code == 429):
-                    raise Exception(f"Rate limit exceeded: {cause.response.status_code} - {cause.response.text}")
-            
-            raise Exception(f"Error fetching transaction info: {str(e)}")
+        max_retries = 5
+        retry_delay = 2  # seconds
         
-        return transaction.value
+        for attempt in range(max_retries):
+            try:
+                transaction = self.client.get_transaction(sig, encoding="jsonParsed", commitment="finalized", max_supported_transaction_version=0)
+                return transaction.value
+            except SolanaRpcException as e:
+                if hasattr(e, "__cause__") and isinstance(e.__cause__, HTTPStatusError):
+                    cause = e.__cause__
+                    if cause.response.status_code == 429:
+                        if attempt < max_retries - 1:
+                            wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                            print(f"Rate limit exceeded. Retrying in {wait_time} seconds... (Attempt {attempt+1}/{max_retries})")
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            raise Exception(f"Rate limit exceeded after {max_retries} attempts")
+                
+                raise Exception(f"Error fetching transaction info: {str(e)}")
+        
+        # This should not be reached due to the return or exception in the loop
+        raise Exception("Failed to get transaction info after maximum retries")
 
     def __display_transaction_info(self, tx_obj) -> dict:
         if tx_obj is None or tx_obj.transaction is None:
@@ -167,7 +184,7 @@ class SolanaWallet:
         # Lookup table accounts
         if getattr(message, "address_table_lookups", None):
             transaction_info["lookup_table_accounts"] = [
-                lookup.account_key for lookup in message.address_table_lookups
+                str(lookup.account_key) for lookup in message.address_table_lookups
             ]
 
         # From / To address analysis (only if balances available)
@@ -226,8 +243,8 @@ class SolanaWallet:
             transaction_info = self.__display_transaction_info(tx_info)
             transactions.append(transaction_info)
             print(f"Fetched transaction for signature: {sig}")
-            print(f"Sleeping for {REST_TIME} seconds to respect rate limits...")
-            time.sleep(REST_TIME)  # Respect rate limits
+            print(f"Sleeping for {self.rest_time} seconds to respect rate limits...")
+            time.sleep(self.rest_time)  # Respect rate limits
 
             # except Exception as e:
             #     print(f"Error processing transaction {sig}: {e}")
