@@ -1,6 +1,7 @@
 from CONSTANTS import *
 import json
 from solana_wallet import SolanaWallet
+from balance_graph import BalanceGraph
 
 def main():
     # Devnet example
@@ -31,7 +32,17 @@ def main():
         limit = 50
     else:
         limit = int(limit)
+    
+    save_graph = input("Do you want to save the balance graph? (yes/no): ").strip().lower()
+    if save_graph not in ["yes", "no"]:
+        print("Invalid input. Defaulting to 'no'.")
+        save_graph = "no"
+    elif save_graph == "yes":
+        save_graph = True
+    else:
+        save_graph = False
 
+    # Create SolanaWallet instance and fetch transactions
     wallet = SolanaWallet(wallet_address, endpoint)
     transactions = wallet.get_recent_transactions(limit=limit)
     other_info = wallet.get_account_other_info(show_zero_balance_accounts=True) # Slower if we get token names
@@ -44,6 +55,11 @@ def main():
     with open("other_info.json", "w") as f:
         json.dump(other_info, f, indent=4)
         print(f"Saved other account info to other_info.json")
+    
+    # Create BalanceGraph instance and plot the balance graph
+    if save_graph:
+        balance_graph = BalanceGraph(wallet_address, transactions)
+        balance_graph.plot_balance_graph()
 
 if __name__ == "__main__":
     main()
