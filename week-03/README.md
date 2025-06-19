@@ -18,10 +18,10 @@ npm install
 
 ## Usage
 
-Run the program with a token address:
+Run the program with one or more token addresses:
 
 ```bash
-npm start <TOKEN_ADDRESS>
+npm start <TOKEN_ADDRESS_1> <TOKEN_ADDRESS_2> ...
 ```
 
 ### Examples
@@ -32,25 +32,19 @@ Monitor SOL/USDC pool:
 npm start EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 ```
 
-Monitor SOL/USDT pool:
+Monitor SOL/USDT and SOL/BONK pools simultaneously:
 
 ```bash
-npm start Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB
-```
-
-Monitor SOL/BONK pool:
-
-```bash
-npm start DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263
+npm start Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263
 ```
 
 ## Output
 
 The program will:
 
-1. Find the pool with the largest TVL
-2. Start monitoring price changes in real-time
-3. Display price updates with:
+1. For each token address provided, finds the pool with the largest TVL
+2. Starts monitoring price changes in real-time for each pool
+3. Displays price updates for each pool with:
    - Pool address
    - Price
    - TVL
@@ -76,4 +70,5 @@ The program will:
 
 - The program uses the Solana mainnet RPC endpoint by default
 - Price is calculated in token terms (how much token per SOL)
-- Press Ctrl+C to stop monitoring
+- You can monitor as many tokens as you want in parallel (each in its own pool)
+- Press Ctrl+C to stop monitoring all pools
