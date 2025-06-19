@@ -67,28 +67,39 @@ class SolanaWalletMonitor:
                 # Get transaction details with retry logic
                 max_retries = 3
                 retry_count = 0
-                tx = None
+                tx_response = None # Initialize tx_response
 
+                print(f"\nRECEIVED SIGNATURE, PARSING TRANSACTION DETAILS")
+                print("-" * 50)
                 while retry_count < max_retries:
-                    tx = await self.details_fetcher.get_transaction_details(signature)
-                    if tx:
-                        break
+                    tx_response = await self.details_fetcher.get_transaction_details(signature)
+                    
+                    if tx_response and tx_response.value: # Successfully fetched with details
+                        break 
+                    
+                    # If tx_response is None (fetch error) or tx_response.value is None (no details)
                     retry_count += 1
+                    print(f"Transaction details not yet available or fetch error.")
                     if retry_count < max_retries:
                         print(
                             f"Retrying to get transaction details (attempt {retry_count + 1}/{max_retries})...")
+                        await asyncio.sleep(1) # Wait 1 second before retrying
+                    else:
+                        print(f"Max retries reached.")
 
-                if tx:
+
+                if tx_response and tx_response.value:
                     print(f"Transaction details parsed successfully!")
                     self.__display_transaction_details(
-                        TransactionDetails(tx), transaction_count)
+                        TransactionDetails(tx_response), transaction_count)
                     # Add delay only for mainnet
                     if self.network == "mainnet" and (max_transactions is None or transaction_count < max_transactions):
                         print("Waiting before processing next transaction...")
                         await asyncio.sleep(5)
                 else:
+                    # This 'else' covers cases where tx_response is None OR tx_response.value is None after retries
                     print(
-                        f"Failed to get transaction details after {max_retries} attempts")
+                        f"Failed to get transaction details after {max_retries} attempts. Skipping this transaction.")
 
                 print(f"{'='*60}")
 
