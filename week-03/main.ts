@@ -25,7 +25,7 @@ interface PoolData {
 class OrcaPoolMonitor {
   private currentPrice: number = 0;
   private abortController: AbortController | null = null;
-
+  private poolAddress: Address | null = null;
   private rpc: RpcMainnet<SolanaRpcApiMainnet>;
   private rpcSubscriptions: RpcSubscriptionsMainnet<SolanaRpcSubscriptionsApi>;
 
@@ -62,7 +62,9 @@ class OrcaPoolMonitor {
 
       const pool = await this.fetchPoolData(poolAddress);
 
-      console.log(`🏆 Largest TVL pool: ${pool.poolAddress}`);
+      this.poolAddress = address(pool.poolAddress);
+
+      console.log(`🏆 Largest TVL pool: ${this.poolAddress.toString()}`);
       console.log(`💰 Liquidity: ${pool.liquidity}`);
       console.log(`TVL: ${pool.tvl}`);
       console.log(`📊 Current price: ${pool.price}`);
@@ -83,7 +85,7 @@ class OrcaPoolMonitor {
     } = await response.json();
 
     const whirlpool = await fetchWhirlpool(this.rpc, poolAddress, {
-      commitment: "confirmed",
+      commitment: "finalized",
     });
 
     const { data } = whirlpool;
@@ -102,12 +104,13 @@ class OrcaPoolMonitor {
     };
   }
 
-  async monitorPoolPrice(poolAddress: Address): Promise<void> {
-    console.log(
-      `🔍 Starting price monitoring for pool: ${poolAddress.toString()}`
-    );
-    console.log("📈 Price changes will be displayed below:");
-    console.log("─".repeat(80));
+  async monitorPoolPrice(
+    poolAddress: Address | null = this.poolAddress
+  ): Promise<void> {
+    if (!poolAddress) {
+      console.log("❌ No pool address to monitor");
+      return;
+    }
 
     // Set up an abort controller
     this.abortController = new AbortController();
@@ -141,64 +144,77 @@ class OrcaPoolMonitor {
   stopMonitoring(): void {
     if (this.abortController) {
       this.abortController.abort();
-      console.log("\n🛑 Monitoring stopped");
+      console.log(`🛑 Monitoring stopped for pool: ${this.poolAddress}`);
     }
   }
 }
 
 async function main() {
-  // Get token address from command line arguments
-  const tokenAddress = (globalThis as any).process?.argv?.[2];
+  // Get token addresses from command line arguments (skip first two argv entries)
+  const tokenAddresses = (globalThis as any).process?.argv?.slice(2);
 
-  if (!tokenAddress) {
-    console.log("❌ Please provide a token address as an argument");
-    console.log("Usage: npm start <TOKEN_ADDRESS>");
+  if (!tokenAddresses || tokenAddresses.length === 0) {
+    console.log("❌ Please provide at least one token address as an argument");
+    console.log("Usage: npm start <TOKEN_ADDRESS_1> <TOKEN_ADDRESS_2> ...");
     console.log(
-      "Example: npm start EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-    ); // USDC
+      "Example: npm start EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+    ); // USDC, USDT
     (globalThis as any).process?.exit(1);
     return;
   }
 
-  // Validate token address format
-  try {
-    address(tokenAddress);
-  } catch (error) {
-    console.log("❌ Invalid token address format");
-    (globalThis as any).process?.exit(1);
-    return;
+  // Validate token address formats
+  for (const tokenAddress of tokenAddresses) {
+    try {
+      address(tokenAddress);
+    } catch (error) {
+      console.log(`❌ Invalid token address format: ${tokenAddress}`);
+      (globalThis as any).process?.exit(1);
+      return;
+    }
   }
 
   await setWhirlpoolsConfig("solanaMainnet");
-  const monitor = new OrcaPoolMonitor();
+  const monitors: OrcaPoolMonitor[] = [];
+  const monitorTasks: Promise<void>[] = [];
 
   // Set up a promise that resolves on SIGINT
   let stopPromiseResolve: (() => void) | null = null;
   const stopPromise = new Promise<void>((resolve) => {
     stopPromiseResolve = resolve;
     (globalThis as any).process?.on("SIGINT", () => {
-      monitor.stopMonitoring();
+      for (const monitor of monitors) {
+        monitor.stopMonitoring();
+      }
       resolve();
     });
   });
 
   try {
-    // Find the largest TVL pool
-    const pool = await monitor.findLargestTVLPool(tokenAddress);
-
-    if (!pool) {
-      console.log("❌ Could not find a suitable pool");
-      (globalThis as any).process?.exit(1);
-      return;
+    for (const tokenAddress of tokenAddresses) {
+      const monitor = new OrcaPoolMonitor();
+      monitors.push(monitor);
+      // Find the largest TVL pool for this token
+      const pool = await monitor.findLargestTVLPool(tokenAddress);
+      if (!pool) {
+        console.log(
+          `❌ Could not find a suitable pool for token: ${tokenAddress}`
+        );
+        continue;
+      }
     }
-
-    // Start monitoring (do not await, let it run)
-    monitor.monitorPoolPrice(address(pool.poolAddress));
+    console.log("─".repeat(80) + "\n");
+    console.log("Pools retrieved successfully");
+    console.log("📈 Price changes will be displayed below:");
+    console.log("─".repeat(80) + "\n");
+    for (const monitor of monitors) {
+      monitor.monitorPoolPrice();
+    }
 
     // Wait until SIGINT is received
     await stopPromise;
     console.log("👋 Exiting...");
-    // (globalThis as any).process?.exit(0);
+    (globalThis as any).process?.exit(0);
   } catch (error) {
     console.error("❌ Error:", error);
     (globalThis as any).process?.exit(1);
