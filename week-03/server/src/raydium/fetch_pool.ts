@@ -15,11 +15,18 @@ async function fetchHighestTVLPool(tokenMint: string): Promise<any> {
 
         return {
             id: pool.id,
-            mintA: pool.mintA.address,
-            mintB: pool.mintB.address,
-            decimalsA: pool.mintA.decimals,
-            decimalsB: pool.mintB.decimals,
             type: pool.type.toLowerCase(), // Ensure type is in lowercase
+            tvl: pool.tvl.toString(),
+            mintA: {
+                address: pool.mintA.address,
+                symbolName: `${pool.mintA.symbol.trim()} - ${pool.mintA.name.trim()}`,
+                decimals: pool.mintA.decimals
+            },
+            mintB: {
+                address: pool.mintB.address,
+                symbolName: `${pool.mintB.symbol.trim()} - ${pool.mintB.name.trim()}`,
+                decimals: pool.mintB.decimals
+            }
         }
     } else {
         throw new Error("No pools found for the specified token mint.");

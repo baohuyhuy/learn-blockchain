@@ -1,6 +1,7 @@
 import RaydiumWebsocket from "./raydium_ws.js";
 import fetchHighestTVLPool from "./fetch_pool.js";
 import decodePoolWithNode from "./decode_pool.js";
+import { RaydiumWebsocketConfig } from "./interfaces.js";
 import { Socket } from 'socket.io';
 
 const raydiumWsList: RaydiumWebsocket[] = [];
@@ -10,7 +11,11 @@ async function startMonitor(tokenMint: string, client: Socket) {
         const poolData = await fetchHighestTVLPool(tokenMint);
         console.log("Fetched pool data:", poolData);
 
-        const { id: poolId, mintA, mintB, decimalsA, decimalsB, type: poolType } = poolData;
+        const poolId = poolData.id;
+        const poolType = poolData.type;
+        const poolTvl = poolData.tvl;
+        const mintASymbolName = poolData.mintA.symbolName;
+        const mintBSymbolName = poolData.mintB.symbolName;
 
         // Decode the pool using the node method
         const decodedPool = await decodePoolWithNode(poolId, poolType);
@@ -19,20 +24,25 @@ async function startMonitor(tokenMint: string, client: Socket) {
             return;
         }
 
+        const config: RaydiumWebsocketConfig = {
+            poolId: poolId,
+            poolType: poolType,
+            poolTvl: poolTvl,
+            vaultA: decodedPool.vaultA,
+            mintA: decodedPool.mintA,
+            decimalsA: decodedPool.decimalsA,
+            mintASymbolName: mintASymbolName,
+            vaultB: decodedPool.vaultB,
+            mintB: decodedPool.mintB,
+            decimalsB: decodedPool.decimalsB,
+            mintBSymbolName: mintBSymbolName,
+            sqrtPriceX64: decodedPool.sqrtPriceX64,
+            liquidity: decodedPool.liquidity,
+            client: client
+        };
+
         // Create a new RaydiumWebsocket instance
-        const raydiumWs = new RaydiumWebsocket(
-            decodedPool.vaultA,
-            decodedPool.vaultB,
-            decodedPool.decimalsA,
-            decodedPool.decimalsB,
-            decodedPool.mintA,
-            decodedPool.mintB,
-            poolType,
-            decodedPool.sqrtPriceX64,
-            decodedPool.liquidity,
-            poolId,
-            client
-        );
+        const raydiumWs = new RaydiumWebsocket(config);
 
         // Connect to the WebSocket
         raydiumWs.connect();

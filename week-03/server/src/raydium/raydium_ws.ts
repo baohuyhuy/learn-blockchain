@@ -2,6 +2,7 @@ import * as WebSocket from 'ws';
 import { SOLANA_MAINNET_WS, SOL_MINT } from './CONSTANTS.js';
 import decodePoolWithNode from './decode_pool.js';
 import Decimal from 'decimal.js';
+import { RaydiumWebsocketConfig } from './interfaces.js';
 
 import { Socket } from 'socket.io';
 
@@ -17,6 +18,11 @@ function decodeTokenAccount(data: string): string{
     return decimalAmount.toString();
 }
 
+function roundToNearest(value: number, precision: number): number {
+    const factor = Math.pow(10, precision);
+    return Math.round(value * factor) / factor;
+}
+
 class RaydiumWebsocket {
     private vaultA: string;
     private vaultB: string;
@@ -24,6 +30,9 @@ class RaydiumWebsocket {
     private decimalsB: number;
     private mintA: string;
     private mintB: string;
+    private mintASymbolName: string;
+    private mintBSymbolName: string;
+    private tvl: string;
     private poolType: string;
     private sqrtPriceX64: string | null;
     private liquidity: string | null;
@@ -40,34 +49,25 @@ class RaydiumWebsocket {
 
     private client: Socket;
 
-    constructor (
-        vaultA: string,
-        vaultB: string,
-        decimalsA: number,
-        decimalsB: number,
-        mintA: string,
-        mintB: string,
-        poolType: string,
-        sqrtPriceX64: string | null,
-        liquidity: string | null,
-        poolId: string,
-        client: Socket
-    ) {
-        this.vaultA = vaultA;
-        this.vaultB = vaultB;
-        this.decimalsA = decimalsA;
-        this.decimalsB = decimalsB;
-        this.mintA = mintA;
-        this.mintB = mintB;
-        this.poolType = poolType;
-        this.sqrtPriceX64 = sqrtPriceX64 ||  null;
-        this.liquidity = liquidity ||  null;
-        this.poolId = poolId;
+    constructor (config: RaydiumWebsocketConfig) {
+        this.vaultA = config.vaultA;
+        this.decimalsA = config.decimalsA;
+        this.mintA = config.mintA;
+        this.mintASymbolName = config.mintASymbolName;
+        this.vaultB = config.vaultB;
+        this.decimalsB = config.decimalsB;
+        this.mintB = config.mintB;
+        this.mintBSymbolName = config.mintBSymbolName;
+        this.poolId = config.poolId;
+        this.poolType = config.poolType;
+        this.tvl = config.poolTvl;
+        this.sqrtPriceX64 = config.sqrtPriceX64 || null;
+        this.liquidity = config.liquidity || null;
+        this.client = config.client;
         this.amountA = '';
         this.amountB = '';
         this.subMap = new Map<number, string>();
         this.ws = null;
-        this.client = client;
     }
 
     private setupPingInterval() {
@@ -177,13 +177,11 @@ class RaydiumWebsocket {
 
                     console.log(`1 SOL = ${price} ${this.mintA === SOL_MINT ? this.mintB : this.mintA}`);
                     this.clientEmit('update', {
-                        price: price.toString(),
-                        mintA: this.mintA,
+                        poolAddres: this.poolId,
+                        symbolName: this.mintBSymbolName,
+                        price: roundToNearest(Number(price), 6),
+                        tvl: roundToNearest(Number(this.tvl), 2),
                         mintB: this.mintB,
-                        decimalsA: this.decimalsA,
-                        decimalsB: this.decimalsB,
-                        amountA: amountA.toString(),
-                        amountB: amountB.toString(),
                     });
                 }
             } else if (this.poolType === 'clmm' || this.poolType === 'concentrated') {
@@ -247,13 +245,11 @@ class RaydiumWebsocket {
                                 console.log('Real-time price update:');
                                 console.log(`1 SOL = ${price} ${this.mintA === SOL_MINT ? this.mintB : this.mintA}`);
                                 this.clientEmit('update', {
-                                    price: price.toString(),
-                                    mintA: this.mintA,
+                                    poolAddres: this.poolId,
+                                    symbolName: this.mintBSymbolName,
+                                    price: roundToNearest(Number(price), 6),
+                                    tvl: roundToNearest(Number(this.tvl), 2),
                                     mintB: this.mintB,
-                                    decimalsA: this.decimalsA.toString(),
-                                    decimalsB: this.decimalsB.toString(),
-                                    sqrtPriceX64: this.sqrtPriceX64,
-                                    liquidity: this.liquidity,
                                 });
                             }
                         })
