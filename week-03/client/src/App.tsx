@@ -5,6 +5,7 @@ function App() {
 	const inputTokenRef = useRef<HTMLTextAreaElement>(null);
 	const raydiumSocketRef = useRef<Socket | null>(null);
 	const orcaSocketRef = useRef<Socket | null>(null);
+	const meteoraSocketRef = useRef<Socket | null>(null);
 
 	const [tokenMints, setTokenMints] = useState<string[]>([]);
 
@@ -12,12 +13,16 @@ function App() {
     useEffect(() => {
 		raydiumSocketRef.current = io('http://localhost:3001/raydium');
 		orcaSocketRef.current = io('http://localhost:3001/orca');
+		meteoraSocketRef.current = io('http://localhost:3001/meteora');
 
 		raydiumSocketRef.current.on('connect_error', (error) => {
 			console.error('Socket.IO connection error:', error);
 		});
 		orcaSocketRef.current.on('connect_error', (error) => {
 			console.error('Socket.IO connection error:', error);
+		});
+		meteoraSocketRef.current.on('connect_error', (error) => {
+			console.error('Meteora Socket.IO connection error:', error);
 		});
 
         raydiumSocketRef.current.on('connect', () => {
@@ -26,12 +31,18 @@ function App() {
 		orcaSocketRef.current.on('connect', () => {
 			console.log('Socket.IO connected to Orca');
 		});
+		meteoraSocketRef.current.on('connect', () => {
+			console.log('Meteora Socket.IO connected');
+		});
 
         raydiumSocketRef.current.on('update', (data) => {
             console.log('Raydium Update:', data);
         });
 		orcaSocketRef.current.on('update', (data) => {
 			console.log('Orca Update:', data);
+		});
+		meteoraSocketRef.current.on('update', (data) => {
+			console.log('Meteora Update:', data);
 		});
 
         raydiumSocketRef.current.on('error', (error) => {
@@ -40,6 +51,9 @@ function App() {
 		orcaSocketRef.current.on('error', (error) => {
 			console.error('Orca Socket.IO error:', error);
 		});
+		meteoraSocketRef.current.on('error', (error) => {
+			console.error('Meteora Socket.IO error:', error);
+		});
 
         raydiumSocketRef.current.on('disconnect', () => {
             console.log('Socket.IO disconnected');
@@ -47,10 +61,14 @@ function App() {
 		orcaSocketRef.current.on('disconnect', () => {
 			console.log('Orca Socket.IO disconnected');
 		});
+		meteoraSocketRef.current.on('disconnect', () => {
+			console.log('Meteora Socket.IO disconnected');
+		});
 
         return () => {
             raydiumSocketRef.current?.disconnect();
 			orcaSocketRef.current?.disconnect();
+			meteoraSocketRef.current?.disconnect();
         };
     }, []);
 
@@ -68,10 +86,11 @@ function App() {
 
 		// Emit the startMonitor event for each token mint
 		newTokenmints.forEach((tokenMint) => {
-			if (raydiumSocketRef.current && orcaSocketRef.current) {
+			if (raydiumSocketRef.current && orcaSocketRef.current && meteoraSocketRef.current) {
 				console.log(`Starting monitoring for token: ${tokenMint}`);
 				raydiumSocketRef.current.emit('startMonitor', { tokenMint });
 				orcaSocketRef.current.emit('startMonitor', { tokenMint });
+				meteoraSocketRef.current.emit('startMonitor', { tokenMint });
 			} else {
 				console.error('Socket.IO client is not initialized');
 			}
@@ -80,10 +99,11 @@ function App() {
 
 	const handleStopMonitoring = () => {
 		// Emit the stopMonitor event to stop monitoring all tokens
-		if (raydiumSocketRef.current && orcaSocketRef.current) {
+		if (raydiumSocketRef.current && orcaSocketRef.current && meteoraSocketRef.current) {
 			console.log(`Stopping monitoring for tokens: ${tokenMints.join(', ')}`);
 			raydiumSocketRef.current.emit('stopMonitor', {});
 			orcaSocketRef.current.emit('stopMonitor', {});
+			meteoraSocketRef.current.emit('stopMonitor', {});
 		}
 		console.log('Socket.IO stopped monitoring');
 		setTokenMints([]);

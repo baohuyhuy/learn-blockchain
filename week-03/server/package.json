@@ -20,12 +20,18 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@meteora-ag/cp-amm-sdk": "^1.0.10",
+    "@meteora-ag/dlmm": "^1.5.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/platform-socket.io": "^11.1.3",
     "@nestjs/websockets": "^11.1.3",
+    "@orca-so/whirlpools": "^2.2.0",
+    "@orca-so/whirlpools-client": "^2.0.0",
+    "@orca-so/whirlpools-core": "^2.0.0",
     "@raydium-io/raydium-sdk": "^1.3.1-beta.58",
+    "@solana/kit": "^2.1.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "ws": "^8.18.2"
