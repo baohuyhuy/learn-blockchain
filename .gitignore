@@ -3,3 +3,4 @@ __pycache__
 test/
 solana-local-validator
 *.zip
+node_modules/

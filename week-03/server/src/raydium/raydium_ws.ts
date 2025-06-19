@@ -5,6 +5,7 @@ import Decimal from 'decimal.js';
 import { RaydiumWebsocketConfig } from './interfaces.js';
 
 import { Socket } from 'socket.io';
+import { platform } from 'os';
 
 // Set Decimal.js precision to 40 to handle large numbers accurately
 Decimal.set({precision: 40});
@@ -177,6 +178,7 @@ class RaydiumWebsocket {
 
                     console.log(`1 SOL = ${price} ${this.mintA === SOL_MINT ? this.mintB : this.mintA}`);
                     this.clientEmit('update', {
+                        platform: 'raydium',
                         poolAddres: this.poolId,
                         symbolName: this.mintBSymbolName,
                         price: roundToNearest(Number(price), 6),
@@ -245,6 +247,7 @@ class RaydiumWebsocket {
                                 console.log('Real-time price update:');
                                 console.log(`1 SOL = ${price} ${this.mintA === SOL_MINT ? this.mintB : this.mintA}`);
                                 this.clientEmit('update', {
+                                    platform: 'raydium',
                                     poolAddres: this.poolId,
                                     symbolName: this.mintBSymbolName,
                                     price: roundToNearest(Number(price), 6),

@@ -1,38 +1,56 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 function App() {
 	const inputTokenRef = useRef<HTMLTextAreaElement>(null);
-	const socketRef = useRef<Socket | null>(null);
+	const raydiumSocketRef = useRef<Socket | null>(null);
+	const orcaSocketRef = useRef<Socket | null>(null);
 
 	const [tokenMints, setTokenMints] = useState<string[]>([]);
 
 	// Initialize Socket.IO connection once when the component mounts
     useEffect(() => {
-		socketRef.current = io('http://localhost:3001/raydium');
+		raydiumSocketRef.current = io('http://localhost:3001/raydium');
+		orcaSocketRef.current = io('http://localhost:3001/orca');
 
-		socketRef.current.on('connect_error', (error) => {
+		raydiumSocketRef.current.on('connect_error', (error) => {
+			console.error('Socket.IO connection error:', error);
+		});
+		orcaSocketRef.current.on('connect_error', (error) => {
 			console.error('Socket.IO connection error:', error);
 		});
 
-        socketRef.current.on('connect', () => {
+        raydiumSocketRef.current.on('connect', () => {
             console.log('Socket.IO connected');
         });
+		orcaSocketRef.current.on('connect', () => {
+			console.log('Socket.IO connected to Orca');
+		});
 
-        socketRef.current.on('update', (data) => {
-            console.log('Update:', data);
+        raydiumSocketRef.current.on('update', (data) => {
+            console.log('Raydium Update:', data);
         });
+		orcaSocketRef.current.on('update', (data) => {
+			console.log('Orca Update:', data);
+		});
 
-        socketRef.current.on('error', (error) => {
+        raydiumSocketRef.current.on('error', (error) => {
             console.error('Socket.IO error:', error);
         });
+		orcaSocketRef.current.on('error', (error) => {
+			console.error('Orca Socket.IO error:', error);
+		});
 
-        socketRef.current.on('disconnect', () => {
+        raydiumSocketRef.current.on('disconnect', () => {
             console.log('Socket.IO disconnected');
         });
+		orcaSocketRef.current.on('disconnect', () => {
+			console.log('Orca Socket.IO disconnected');
+		});
 
         return () => {
-            socketRef.current?.disconnect();
+            raydiumSocketRef.current?.disconnect();
+			orcaSocketRef.current?.disconnect();
         };
     }, []);
 
@@ -50,9 +68,10 @@ function App() {
 
 		// Emit the startMonitor event for each token mint
 		newTokenmints.forEach((tokenMint) => {
-			if (socketRef.current) {
+			if (raydiumSocketRef.current && orcaSocketRef.current) {
 				console.log(`Starting monitoring for token: ${tokenMint}`);
-				socketRef.current.emit('startMonitor', { tokenMint });
+				raydiumSocketRef.current.emit('startMonitor', { tokenMint });
+				orcaSocketRef.current.emit('startMonitor', { tokenMint });
 			} else {
 				console.error('Socket.IO client is not initialized');
 			}
@@ -61,9 +80,10 @@ function App() {
 
 	const handleStopMonitoring = () => {
 		// Emit the stopMonitor event to stop monitoring all tokens
-		if (socketRef.current) {
+		if (raydiumSocketRef.current && orcaSocketRef.current) {
 			console.log(`Stopping monitoring for tokens: ${tokenMints.join(', ')}`);
-			socketRef.current.emit('stopMonitor', {});
+			raydiumSocketRef.current.emit('stopMonitor', {});
+			orcaSocketRef.current.emit('stopMonitor', {});
 		}
 		console.log('Socket.IO stopped monitoring');
 		setTokenMints([]);
@@ -71,15 +91,15 @@ function App() {
 
 	return (
 		<div>
-		<h2>Socket.IO Raydium Monitor</h2>
+			<h2>Socket.IO Raydium Monitor</h2>
 
-		<textarea rows={10} cols={50} ref={inputTokenRef}></textarea>
-		<button onClick={handleStartMonitoring}>
-			Start Monitoring
-		</button>
-		<button onClick={handleStopMonitoring} disabled={tokenMints.length === 0}>
-			Stop Monitoring
-		</button>
+			<textarea rows={10} cols={50} ref={inputTokenRef}></textarea>
+			<button onClick={handleStartMonitoring}>
+				Start Monitoring
+			</button>
+			<button onClick={handleStopMonitoring} disabled={tokenMints.length === 0}>
+				Stop Monitoring
+			</button>
 		</div>
 	);
 }

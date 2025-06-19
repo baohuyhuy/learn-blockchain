@@ -13,6 +13,8 @@ import {
 import { WSOL } from "./CONTANTS";
 import { fetchWhirlpool } from "@orca-so/whirlpools-client";
 import { sqrtPriceToPrice } from "@orca-so/whirlpools-core";
+import { Socket } from 'socket.io';
+
 
 interface PoolData {
   poolAddress: string;
@@ -20,6 +22,7 @@ interface PoolData {
   tvl: number;
   liquidity: number;
   tokenSymbol: string;
+  tokenAddress: string;
 }
 
 class OrcaPoolMonitor {
@@ -28,13 +31,21 @@ class OrcaPoolMonitor {
   private poolAddress: Address | null = null;
   private rpc: RpcMainnet<SolanaRpcApiMainnet>;
   private rpcSubscriptions: RpcSubscriptionsMainnet<SolanaRpcSubscriptionsApi>;
+  private client: Socket;
 
-  constructor() {
+  constructor(client: Socket) {
     this.rpc = createSolanaRpc(mainnet("https://api.mainnet-beta.solana.com"));
     this.rpcSubscriptions = createSolanaRpcSubscriptions(
       mainnet("wss://api.mainnet-beta.solana.com")
     );
+    this.client = client;
   }
+
+	private clientEmit(event: string, data: any) {
+	if (this.client) {
+		this.client.emit(event, data);
+	}
+}
 
   async fetchPoolAddress(tokenMint: string, solMint: string): Promise<Address> {
     const params = new URLSearchParams();
@@ -101,6 +112,7 @@ class OrcaPoolMonitor {
       tvl: Number(tvlUsdc),
       liquidity: Number(data.liquidity),
       tokenSymbol: tokenA.symbol === "SOL" ? tokenB.symbol : tokenA.symbol,
+	  tokenAddress: tokenA.symbol === "SOL" ? tokenB.address : tokenA.address,
     };
   }
 
@@ -131,6 +143,15 @@ class OrcaPoolMonitor {
         if (newPrice !== this.currentPrice) {
           this.currentPrice = newPrice;
           console.log(poolData);
+
+		   this.clientEmit('update', {
+        platform: 'orca',
+        poolAddress: poolData.poolAddress,
+        price: poolData.price,
+        tvl: poolData.tvl,
+        symbolName: poolData.tokenSymbol,
+        mintB: poolData.tokenAddress,
+        });
         }
       }
     } catch (error) {
@@ -149,77 +170,27 @@ class OrcaPoolMonitor {
   }
 }
 
-async function main() {
-  // Get token addresses from command line arguments (skip first two argv entries)
-  const tokenAddresses = (globalThis as any).process?.argv?.slice(2);
+const monitors: OrcaPoolMonitor[] = [];
 
-  if (!tokenAddresses || tokenAddresses.length === 0) {
-    console.log("❌ Please provide at least one token address as an argument");
-    console.log("Usage: npm start <TOKEN_ADDRESS_1> <TOKEN_ADDRESS_2> ...");
-    console.log(
-      "Example: npm start EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
-    ); // USDC, USDT
-    (globalThis as any).process?.exit(1);
-    return;
-  }
-
-  // Validate token address formats
-  for (const tokenAddress of tokenAddresses) {
+async function startMonitor(tokenMint: string, client: Socket) {
     try {
-      address(tokenAddress);
+      	const monitor = new OrcaPoolMonitor(client);
+      	const pool = await monitor.findLargestTVLPool(tokenMint);
+
+        console.log("Fetched pool data:", pool);
+
+      	monitor.monitorPoolPrice();
+		monitors.push(monitor);
     } catch (error) {
-      console.log(`❌ Invalid token address format: ${tokenAddress}`);
-      (globalThis as any).process?.exit(1);
-      return;
+        console.error("Error in main function:", error);
     }
-  }
-
-  await setWhirlpoolsConfig("solanaMainnet");
-  const monitors: OrcaPoolMonitor[] = [];
-  const monitorTasks: Promise<void>[] = [];
-
-  // Set up a promise that resolves on SIGINT
-  let stopPromiseResolve: (() => void) | null = null;
-  const stopPromise = new Promise<void>((resolve) => {
-    stopPromiseResolve = resolve;
-    (globalThis as any).process?.on("SIGINT", () => {
-      for (const monitor of monitors) {
-        monitor.stopMonitoring();
-      }
-      resolve();
-    });
-  });
-
-  try {
-    for (const tokenAddress of tokenAddresses) {
-      const monitor = new OrcaPoolMonitor();
-      monitors.push(monitor);
-      // Find the largest TVL pool for this token
-      const pool = await monitor.findLargestTVLPool(tokenAddress);
-      if (!pool) {
-        console.log(
-          `❌ Could not find a suitable pool for token: ${tokenAddress}`
-        );
-        continue;
-      }
-    }
-    console.log("─".repeat(80) + "\n");
-    console.log("Pools retrieved successfully");
-    console.log("📈 Price changes will be displayed below:");
-    console.log("─".repeat(80) + "\n");
-    for (const monitor of monitors) {
-      monitor.monitorPoolPrice();
-    }
-
-    // Wait until SIGINT is received
-    await stopPromise;
-    console.log("👋 Exiting...");
-    (globalThis as any).process?.exit(0);
-  } catch (error) {
-    console.error("❌ Error:", error);
-    (globalThis as any).process?.exit(1);
-  }
 }
 
-// Run the program
-main().catch(console.error);
+async function stopMonitor() {
+	// Disconnect all OrcaPoolMonitor instances
+	monitors.forEach((monitor) => {
+		monitor.stopMonitoring();
+	});
+}
+
+export { startMonitor, stopMonitor}
