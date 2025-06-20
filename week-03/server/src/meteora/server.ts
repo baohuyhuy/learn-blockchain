@@ -12,6 +12,9 @@ async function getRealtimeSwapPrice(tokenAddress: PublicKey): Promise<any> {
     dammTracker.getHighestTvlPool()
   ]);
 
+  console.log("DLMM Result:", dlmmResult);
+  console.log("DAMM Result:", dammResult);
+
   const dlmmPool = dlmmResult.status === 'fulfilled' && !dlmmResult.value.error ? dlmmResult.value : null;
   const dammPool = dammResult.status === 'fulfilled' && !dammResult.value.error ? dammResult.value : null;
 
@@ -26,64 +29,14 @@ async function getRealtimeSwapPrice(tokenAddress: PublicKey): Promise<any> {
   return dlmmPool || dammPool;
 }
 
-// async function trackSingleToken(tokenAddress: string): Promise<void> {
-//   try {
-//     const result = await getRealtimeSwapPrice(new PublicKey(tokenAddress));
-//     const timestamp = new Date().toLocaleTimeString();
-    
-//     console.log(`[${timestamp}] Token: ${tokenAddress}`);
-//     console.log(JSON.stringify(result, null, 2));
-//     console.log('---');
-//   } catch (error: any) {
-//     const timestamp = new Date().toLocaleTimeString();
-//     console.log(`[${timestamp}] Token: ${tokenAddress}`);
-//     console.log(JSON.stringify({ error: error.message }, null, 2));
-//     console.log('---');
-//   }
-// }
-
-// async function main() {
-  
-//   if (tokenAddresses.length === 0) {
-//     console.error('No valid token addresses found in token.txt');
-//     return;
-//   }
-
-//   console.log(`Starting price tracking for tokens\n`);
-
-//   // Track all tokens in parallel
-//   const trackingPromises = tokenAddresses.map((tokenAddress, index) => {
-//     const trackToken = async () => {
-//       // Stagger start times
-//       await new Promise(resolve => setTimeout(resolve, index * 300));
-      
-//       while (true) {
-//         if (stop) {
-//           console.log(`Stopping tracking for token: ${tokenAddress}`);
-//           break;
-//         }
-
-//         await trackSingleToken(tokenAddress);
-//         // Different intervals for each token to spread load
-//         const interval = 3000 + (index * 500);
-//         await new Promise(resolve => setTimeout(resolve, interval));
-//       }
-//     };
-//     return trackToken();
-//   });
-
-//   await Promise.all(trackingPromises);
-// }
-
 class TokenTracker {
-  private abortController: AbortController;
+  private stop: boolean = false;
   private tokenMint: string;
   private client: Socket;
 
   constructor(tokenMint: string, client: Socket) {
     this.tokenMint = tokenMint;
     this.client = client;
-    this.abortController = new AbortController();
   }
 
   private clientEmit(event: string, data: any) {
@@ -93,56 +46,59 @@ class TokenTracker {
   }
 
   async start() {
-    console.log(`Starting tracking for token: ${this.tokenMint}`);
+    console.log(`[Meteora] Starting tracking for token: ${this.tokenMint}`);
     
-    while (!this.abortController.signal.aborted) {
+    while (!this.stop) {
       try {
         const result = await getRealtimeSwapPrice(new PublicKey(this.tokenMint));
-        this.clientEmit('update', result);
-        
-        // Use abortable timeout
-        await Promise.race([
-          new Promise(resolve => setTimeout(resolve, 3000)),
-          new Promise((_, reject) => {
-            this.abortController.signal.addEventListener('abort', () => 
-              reject(new Error('Tracking aborted'))
-            );
-          })
-        ]);
 
-      } catch (error: any) {
-        if (this.abortController.signal.aborted) {
-          console.log(`Tracking aborted for token: ${this.tokenMint}`);
-          break;
+        if (result.error) {
+          console.error(`[Meteora] [Error] Token: ${this.tokenMint}`, result.error);
+          continue;
         }
-        console.error(`[${new Date().toLocaleTimeString()}] Error tracking token ${this.tokenMint}: ${error.message}`);
+
+        console.log(`[Meteora] [Token: ${this.tokenMint}]`, result);
+        this.clientEmit('update', result);
+      } catch (error: any) {
+        console.error(`[Meteora] [Error] Token: ${this.tokenMint}`, error.message);
       }
+
+      // Wait for a fixed interval before the next check
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
 
   stopTracking() {
-    console.log(`Stopping tracking for token: ${this.tokenMint}`);
-    this.abortController.abort();
+    console.log(`[Meteora] Stopping tracking for token: ${this.tokenMint}`);
+    this.stop = true;
   }
 }
 
-const tokenList: TokenTracker[] = [];
+const tokenList: { tracker: TokenTracker; promise: Promise<void> }[] = [];
 
 async function startMonitor(tokenMint: string, client: Socket) {
     try {
         const tracker = new TokenTracker(tokenMint, client);
-        tokenList.push(tracker);
-        await tracker.start();
+        const promise = tracker.start();
+
+        // Store the tracker and its promise in the tokenList
+        tokenList.push({ tracker, promise }); // Ignore 'await' here to avoid running only first tracker
     } catch (error) {
-        console.error("Error in main function:", error);
+        console.error("[Meteora] Error in startMonitor:", error);
     }
 }
 
 async function stopMonitor() {
-    for (const tracker of tokenList) {
+    for (const { tracker } of tokenList) {
         tracker.stopTracking();
     }
+
+    // Wait for all trackers to finish their start loops
+    await Promise.all(tokenList.map(({ promise }) => promise));
+    console.log("[Meteora] All token trackers stopped.");
+
     tokenList.length = 0; // Clear the list
 }
+
 
 export { startMonitor, stopMonitor };

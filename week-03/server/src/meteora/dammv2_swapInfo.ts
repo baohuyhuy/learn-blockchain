@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import { CpAmm, getPriceFromSqrtPrice } from "@meteora-ag/cp-amm-sdk";
 import { getMint } from "@solana/spl-token";
-import BN from "bn.js";
+import { BN } from "bn.js";
 import BigNumber from "bignumber.js";
 import { SOL_MINT, DAMM_API_URL, connection, DAMMPoolData } from "./CONSTANTS";
 
@@ -125,12 +125,13 @@ export class DAMMPriceTracker {
       }
 
       return {
-        "Pool address": pool.pool_address,
-        "Price": amountOut.toFixed(6),
-        "TVL": parseFloat(pool.tvl || "0"),
-        "Symbol name": this.tokenAddress.toBase58() === pool.token_a_mint ? 
+        protocol: "Meteora V2",
+        poolAddress: pool.pool_address,
+        price: Number(amountOut.toFixed(6)),
+        tvl: parseFloat(pool.tvl || "0"),
+        symbolName: this.tokenAddress.toBase58() === pool.token_a_mint ? 
           pool.token_a_symbol || 'UNKNOWN' : pool.token_b_symbol || 'UNKNOWN',
-        "MintB": this.tokenAddress.toBase58(),
+        mintB: this.tokenAddress.toBase58(),
       };
     } catch (error: any) {
       console.error("[DAMM] Pool calculation failed:", error.message);

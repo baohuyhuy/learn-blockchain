@@ -16,17 +16,17 @@ function App() {
 		meteoraSocketRef.current = io('http://localhost:3001/meteora');
 
 		raydiumSocketRef.current.on('connect_error', (error) => {
-			console.error('Socket.IO connection error:', error);
+			console.error('Raydium Socket.IO connection error:', error);
 		});
 		orcaSocketRef.current.on('connect_error', (error) => {
-			console.error('Socket.IO connection error:', error);
+			console.error('Orca Socket.IO connection error:', error);
 		});
 		meteoraSocketRef.current.on('connect_error', (error) => {
 			console.error('Meteora Socket.IO connection error:', error);
 		});
 
         raydiumSocketRef.current.on('connect', () => {
-            console.log('Socket.IO connected');
+            console.log('Raydium Socket.IO connected');
         });
 		orcaSocketRef.current.on('connect', () => {
 			console.log('Socket.IO connected to Orca');
@@ -46,7 +46,7 @@ function App() {
 		});
 
         raydiumSocketRef.current.on('error', (error) => {
-            console.error('Socket.IO error:', error);
+            console.error('Raydium Socket.IO error:', error);
         });
 		orcaSocketRef.current.on('error', (error) => {
 			console.error('Orca Socket.IO error:', error);
@@ -56,7 +56,7 @@ function App() {
 		});
 
         raydiumSocketRef.current.on('disconnect', () => {
-            console.log('Socket.IO disconnected');
+            console.log('Raydium Socket.IO disconnected');
         });
 		orcaSocketRef.current.on('disconnect', () => {
 			console.log('Orca Socket.IO disconnected');
@@ -111,7 +111,7 @@ function App() {
 
 	return (
 		<div>
-			<h2>Socket.IO Raydium Monitor</h2>
+			<h2>Real-time price monitoring</h2>
 
 			<textarea rows={10} cols={50} ref={inputTokenRef}></textarea>
 			<button onClick={handleStartMonitoring}>

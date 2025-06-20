@@ -9,7 +9,12 @@ const raydiumWsList: RaydiumWebsocket[] = [];
 async function startMonitor(tokenMint: string, client: Socket) {
     try {
         const poolData = await fetchHighestTVLPool(tokenMint);
-        console.log("Fetched pool data:", poolData);
+        console.log("[Raydium] Fetched pool data:", poolData);
+
+        if (!poolData) {
+            console.error("[Raydium] No pool data found for the given token.");
+            return;
+        }
 
         const poolId = poolData.id;
         const poolType = poolData.type;
@@ -20,7 +25,7 @@ async function startMonitor(tokenMint: string, client: Socket) {
         // Decode the pool using the node method
         const decodedPool = await decodePoolWithNode(poolId, poolType);
         if (!decodedPool) {
-            console.error("Failed to decode the pool.");
+            console.error("[Raydium] Failed to decode the pool.");
             return;
         }
 
@@ -50,7 +55,7 @@ async function startMonitor(tokenMint: string, client: Socket) {
         // Add the new RaydiumWebsocket instance to the list
         raydiumWsList.push(raydiumWs);
     } catch (error) {
-        console.error("Error in main function:", error);
+        console.error("[Raydium] Error in main function:", error);
     }
 }
 
@@ -61,6 +66,10 @@ async function stopMonitor() {
             ws.disconnect();
         }
     });
+
+    // Clear the list of RaydiumWebsocket instances
+    raydiumWsList.length = 0;
+    console.log("[Raydium] All WebSocket connections stopped.");
 }
 
 export {startMonitor, stopMonitor};

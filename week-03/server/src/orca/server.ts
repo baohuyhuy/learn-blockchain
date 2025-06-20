@@ -82,7 +82,7 @@ class OrcaPoolMonitor {
 
       return pool;
     } catch (error) {
-      console.error("Error finding largest TVL pool:", error);
+      console.error("[Orca] Error finding largest TVL pool:", error);
       return null;
     }
   }
@@ -120,7 +120,7 @@ class OrcaPoolMonitor {
     poolAddress: Address | null = this.poolAddress
   ): Promise<void> {
     if (!poolAddress) {
-      console.log("❌ No pool address to monitor");
+      console.log("[Orca] No pool address to monitor");
       return;
     }
 
@@ -145,7 +145,7 @@ class OrcaPoolMonitor {
           console.log(poolData);
 
 		   this.clientEmit('update', {
-        platform: 'orca',
+        platform: 'Orca',
         poolAddress: poolData.poolAddress,
         price: poolData.price,
         tvl: poolData.tvl,
@@ -158,14 +158,14 @@ class OrcaPoolMonitor {
       if (this.abortController) {
         this.abortController.abort();
       }
-      console.error("Error monitoring pool price:", error);
+      console.error("[Orca] Error monitoring pool price:", error);
     }
   }
 
   stopMonitoring(): void {
     if (this.abortController) {
       this.abortController.abort();
-      console.log(`🛑 Monitoring stopped for pool: ${this.poolAddress}`);
+      console.log(`[Orca] Monitoring stopped for pool: ${this.poolAddress}`);
     }
   }
 }
@@ -177,12 +177,12 @@ async function startMonitor(tokenMint: string, client: Socket) {
       	const monitor = new OrcaPoolMonitor(client);
       	const pool = await monitor.findLargestTVLPool(tokenMint);
 
-        console.log("Fetched pool data:", pool);
+        console.log("[Orca] Fetched pool data:", pool);
 
       	monitor.monitorPoolPrice();
 		monitors.push(monitor);
     } catch (error) {
-        console.error("Error in main function:", error);
+        console.error("[Orca] Error in main function:", error);
     }
 }
 
@@ -191,6 +191,10 @@ async function stopMonitor() {
 	monitors.forEach((monitor) => {
 		monitor.stopMonitoring();
 	});
+
+  // Clear the monitors array
+  monitors.length = 0;
+  console.log("[Orca] All pool monitors stopped.");
 }
 
 export { startMonitor, stopMonitor}

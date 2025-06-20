@@ -1,9 +1,10 @@
 import { PublicKey } from "@solana/web3.js";
 import { getMint } from "@solana/spl-token";
 import DLMM from "@meteora-ag/dlmm";
-import BN from "bn.js";
+import { BN } from "bn.js";
 import BigNumber from "bignumber.js";
 import { SOL_MINT, DLMM_API_URL, connection, DLMMPoolData } from "./CONSTANTS";
+import { platform } from "os";
 
 // This class tracks prices from DLMM pools on Meteora
 export class DLMMPriceTracker {
@@ -122,11 +123,12 @@ export class DLMMPriceTracker {
       );
 
       return {
-        "Pool address": pool.address,
-        "Price": realTimePrice ? parseFloat(realTimePrice.toFixed(6)) : null,
-        "TVL": parseFloat(pool.liquidity || "0"),
-        "Symbol name": this.parseTokenSymbol(pool.name),
-        "MintB": this.tokenAddress.toBase58(),
+        platform: 'Meteora V2',
+        poolAddress: pool.address,
+        price: realTimePrice ? parseFloat(realTimePrice.toFixed(6)) : null,
+        tvl: parseFloat(pool.liquidity || "0"),
+        symbolName: this.parseTokenSymbol(pool.name),
+        mintB: this.tokenAddress.toBase58(),
       };
     } catch (error: any) {
       //console.error("[DLMM] Swap calculation failed:", error.message);
