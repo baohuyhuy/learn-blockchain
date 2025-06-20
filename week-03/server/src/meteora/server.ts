@@ -22,8 +22,11 @@ async function getRealtimeSwapPrice(tokenAddress: PublicKey): Promise<any> {
     return { error: "No pools found from both DLMM and DAMM protocols" };
   }
 
-  if (dlmmPool && dammPool) {
-    return dlmmPool.TVL > dammPool.TVL ? dlmmPool : dammPool;
+   if (dlmmPool && dammPool) {
+    const dlmmTvl = parseFloat(dlmmPool.tvl || "0");
+    const dammTvl = parseFloat(dammPool.tvl || "0");
+    console.log(`Comparing TVL - DLMM: ${dlmmTvl}, DAMM: ${dammTvl}`);
+    return dlmmTvl > dammTvl ? dlmmPool : dammPool;
   }
 
   return dlmmPool || dammPool;

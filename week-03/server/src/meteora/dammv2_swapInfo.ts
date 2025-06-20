@@ -125,7 +125,7 @@ export class DAMMPriceTracker {
       }
 
       return {
-        protocol: "Meteora V2",
+        platform: "Meteora V2",
         poolAddress: pool.pool_address,
         price: Number(amountOut.toFixed(6)),
         tvl: parseFloat(pool.tvl || "0"),
