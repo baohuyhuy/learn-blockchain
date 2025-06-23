@@ -18,6 +18,7 @@ async function startMonitor(tokenMint: string, client: Socket) {
 
         const poolId = poolData.id;
         const poolType = poolData.type;
+        const poolLogoURI = poolData.logoURI;
         const poolTvl = poolData.tvl;
         const mintASymbolName = poolData.mintA.symbolName;
         const mintBSymbolName = poolData.mintB.symbolName;
@@ -32,6 +33,7 @@ async function startMonitor(tokenMint: string, client: Socket) {
         const config: RaydiumWebsocketConfig = {
             poolId: poolId,
             poolType: poolType,
+            poolLogoURI: poolLogoURI,
             poolTvl: poolTvl,
             vaultA: decodedPool.vaultA,
             mintA: decodedPool.mintA,

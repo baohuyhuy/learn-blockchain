@@ -16,15 +16,16 @@ async function fetchHighestTVLPool(tokenMint: string): Promise<any> {
         return {
             id: pool.id,
             type: pool.type.toLowerCase(), // Ensure type is in lowercase
+            logoURI: pool.mintB.logoURI,
             tvl: pool.tvl.toString(),
             mintA: {
                 address: pool.mintA.address,
-                symbolName: `${pool.mintA.symbol.trim()} - ${pool.mintA.name.trim()}`,
+                symbolName: pool.mintA.symbol.trim(),
                 decimals: pool.mintA.decimals
             },
             mintB: {
                 address: pool.mintB.address,
-                symbolName: `${pool.mintB.symbol.trim()} - ${pool.mintB.name.trim()}`,
+                symbolName: pool.mintB.symbol.trim(),
                 decimals: pool.mintB.decimals
             }
         }

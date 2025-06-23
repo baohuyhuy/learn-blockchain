@@ -34,6 +34,7 @@ class RaydiumWebsocket {
     private mintBSymbolName: string;
     private tvl: string;
     private poolType: string;
+    private poolLogoURI: string;
     private sqrtPriceX64: string | null;
     private liquidity: string | null;
     private poolId: string;
@@ -44,7 +45,7 @@ class RaydiumWebsocket {
 
     private reconnectAttempts: number = 0;
     private maxReconnectAttempts: number = 5;
-    private reconnectInterval: number = 5000; // 5 seconds
+    private reconnectInterval: number = 5000; // 5 seconds  
     private pingInterval: NodeJS.Timeout | null = null;
 
     private client: Socket;
@@ -60,6 +61,7 @@ class RaydiumWebsocket {
         this.mintBSymbolName = config.mintBSymbolName;
         this.poolId = config.poolId;
         this.poolType = config.poolType;
+        this.poolLogoURI = config.poolLogoURI;
         this.tvl = config.poolTvl;
         this.sqrtPriceX64 = config.sqrtPriceX64 || null;
         this.liquidity = config.liquidity || null;
@@ -109,6 +111,7 @@ class RaydiumWebsocket {
         this.decimalsA = 0; // Reset decimalsA on close
         this.decimalsB = 0; // Reset decimalsB on close
         this.poolType = ''; // Reset poolType on close
+        this.poolLogoURI = ''; // Reset poolLogoURI on close
         this.vaultA = ''; // Reset vaultA on close
         this.vaultB = ''; // Reset vaultB on close
     }
@@ -120,6 +123,11 @@ class RaydiumWebsocket {
     }
 
     onMessage = (message: string) => {
+        if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket is not open. Cannot process message.');
+            return;
+        }
+
         const data = JSON.parse(message);
         
         // This is a subscription message
@@ -178,10 +186,11 @@ class RaydiumWebsocket {
                     console.log(`1 SOL = ${price} ${this.mintA === SOL_MINT ? this.mintB : this.mintA}`);
                     this.clientEmit('update', {
                         platform: 'Raydium',
-                        poolAddres: this.poolId,
+                        logoURI: this.poolLogoURI,
+                        poolAddress: this.poolId,
                         symbolName: this.mintBSymbolName,
-                        price: roundToNearest(Number(price), 6),
-                        tvl: roundToNearest(Number(this.tvl), 2),
+                        price: Number(price),
+                        tvl: Number(this.tvl),
                         mintB: this.mintB,
                     });
                 }
@@ -247,10 +256,11 @@ class RaydiumWebsocket {
                                 console.log(`1 SOL = ${price} ${this.mintA === SOL_MINT ? this.mintB : this.mintA}`);
                                 this.clientEmit('update', {
                                     platform: 'Raydium',
-                                    poolAddres: this.poolId,
+                                    poolAddress: this.poolId,
+                                    logoURI: this.poolLogoURI,
                                     symbolName: this.mintBSymbolName,
-                                    price: roundToNearest(Number(price), 6),
-                                    tvl: roundToNearest(Number(this.tvl), 2),
+                                    price: Number(price),
+                                    tvl: Number(this.tvl),
                                     mintB: this.mintB,
                                 });
                             }
@@ -272,13 +282,28 @@ class RaydiumWebsocket {
     onClose = () => {
         console.log('WebSocket connection closed.');
         
+        // Unsubscribe from all accounts if WebSocket is still open
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.subMap.forEach((_, subId) => {
+                this.ws?.send(JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 4,
+                    method: 'accountUnsubscribe',
+                    params: [subId]
+                }));
+            });
+        }
+        
         if (this.pingInterval) {
             clearInterval(this.pingInterval);
+            this.pingInterval = null;
         }
-        this.ws = null;
-        // this.reconnect(); // Attempt to reconnect if needed
 
+        this.ws = null;
         this.cleanupData(); // Clean up data on close
+
+        // Optional: Add reconnection logic
+        // this.reconnect();
     }
 
     onOpen = () => {
@@ -330,10 +355,25 @@ class RaydiumWebsocket {
     }
 
     disconnect = () => {
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
-            console.log('WebSocket connection closed.');
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            // Unsubscribe from all accounts before closing
+            this.subMap.forEach((_, subId) => {
+                this.ws?.send(JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 4, // Using a new ID for unsubscribe
+                    method: 'accountUnsubscribe',
+                    params: [subId]
+                }));
+            });
+
+            // Wait briefly for unsubscribe messages to be sent
+            setTimeout(() => {
+                if (this.ws) {
+                    this.ws.close();
+                    this.ws = null;
+                    console.log('WebSocket connection closed after unsubscribing.');
+                }
+            }, 100);
         } else {
             console.log('WebSocket is not connected.');
         }

@@ -4,6 +4,7 @@ export interface RaydiumWebsocketConfig {
     // Pool information
     poolId: string;
     poolType: string;
+    poolLogoURI: string;
     poolTvl: string;
 
     // Token A details

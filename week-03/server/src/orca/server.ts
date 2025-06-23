@@ -1,4 +1,3 @@
-import { setWhirlpoolsConfig } from "@orca-so/whirlpools";
 import {
   mainnet,
   address,
@@ -116,50 +115,75 @@ class OrcaPoolMonitor {
     };
   }
 
-  async monitorPoolPrice(
-    poolAddress: Address | null = this.poolAddress
-  ): Promise<void> {
-    if (!poolAddress) {
-      console.log("[Orca] No pool address to monitor");
-      return;
-    }
+  async monitorPoolPrice(poolAddress: Address | null = this.poolAddress): Promise<void> {
+      if (!poolAddress) {
+        console.log("[Orca] No pool address to monitor");
+        return;
+      }
 
-    // Set up an abort controller
-    this.abortController = new AbortController();
+      // Set up an abort controller
+      this.abortController = new AbortController();
 
-    // Subscribe to account notifications
-    const accountNotifications = await this.rpcSubscriptions
-      .accountNotifications(poolAddress, {
-        commitment: "confirmed",
-        encoding: "jsonParsed",
-      })
-      .subscribe({ abortSignal: this.abortController.signal });
+      try {
+        // Subscribe to account notifications
+        const accountNotifications = await this.rpcSubscriptions
+          .accountNotifications(poolAddress, {
+            commitment: "confirmed",
+            encoding: "jsonParsed",
+          })
+          .subscribe({ abortSignal: this.abortController.signal });
 
-    // Consume notifications
-    try {
-      for await (const _ of accountNotifications) {
-        const poolData = await this.fetchPoolData(poolAddress);
-        const newPrice = poolData.price;
-        if (newPrice !== this.currentPrice) {
-          this.currentPrice = newPrice;
-          console.log(poolData);
+        // Consume notifications
+        try {
+          for await (const _ of accountNotifications) {
+            const poolData = await this.fetchPoolData(poolAddress);
+            const newPrice = poolData.price;
+            if (newPrice !== this.currentPrice) {
+              this.currentPrice = newPrice;
+              console.log(poolData);
 
-		   this.clientEmit('update', {
-        platform: 'Orca',
-        poolAddress: poolData.poolAddress,
-        price: poolData.price,
-        tvl: poolData.tvl,
-        symbolName: poolData.tokenSymbol,
-        mintB: poolData.tokenAddress,
-        });
+              this.clientEmit('update', {
+                platform: 'Orca',
+                poolAddress: poolData.poolAddress,
+                price: poolData.price,
+                tvl: poolData.tvl,
+                symbolName: poolData.tokenSymbol,
+                mintB: poolData.tokenAddress,
+              });
+            }
+          }
+        } catch (error) {
+          console.error("[Orca] Error in notification loop:", error);
+          // Emit error to client
+          this.clientEmit('error', {
+            message: 'Pool monitoring error',
+            details: error instanceof Error ? error.message : String(error)
+          });
+          // Implement retry logic or cleanup
+          this.stopMonitoring();
         }
+      } catch (error) {
+        console.error("[Orca] WebSocket connection error:", error);
+        // Emit error to client
+        this.clientEmit('error', {
+          message: 'WebSocket connection failed',
+          details: error instanceof Error ? error.message : String(error)
+        });
+        // Clean up
+        if (this.abortController) {
+          this.abortController.abort();
+        }
+        // Optional: Implement exponential backoff retry
+        await this.handleConnectionError();
       }
-    } catch (error) {
-      if (this.abortController) {
-        this.abortController.abort();
-      }
-      console.error("[Orca] Error monitoring pool price:", error);
-    }
+  }
+
+  // Add this helper method for handling connection errors
+  private async handleConnectionError(): Promise<void> {
+      const retryDelay = 3000; // 5 seconds
+      console.log(`[Orca] Retrying connection in ${retryDelay/1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+      await this.monitorPoolPrice();
   }
 
   stopMonitoring(): void {
