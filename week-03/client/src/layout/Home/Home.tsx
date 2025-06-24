@@ -213,11 +213,12 @@ const Home = () => {
 			const previousPrice = token.currentPrice;
 			const currentPrice = findMinPrice(token.dexes);
 			const priceChange = currentPrice - previousPrice;
-
+			const icon = updatedTokens[tokenIndex].icon == 'https://img-v1.raydium.io/icon/default.png' ? data.logoURI : updatedTokens[tokenIndex].icon;
+			console.log(icon)
 			// Update token properties
 			updatedTokens[tokenIndex] = {
 				...token,
-				icon: data.logoURI || 'https://img-v1.raydium.io/icon/default.png',
+				icon: icon,
 				name: data.symbolName,
 				address: data.mintB,
 				currentPrice: currentPrice,
@@ -263,16 +264,15 @@ const Home = () => {
     const handleStartMonitoring = (tokens: string[]) => {
         setTokenMints(tokens);
 
-        tokens.forEach((tokenMint) => {
-			console.log(`Starting monitoring for token: ${tokenMint}`);
-            [raydiumSocketRef, orcaSocketRef, meteoraSocketRef].forEach(socketRef => {
-                if (socketRef.current) {
-                    socketRef.current.emit('startMonitor', { tokenMint });
-                } else {
-                    console.error('Socket.IO client is not initialized');
-                }
-            });
-        });
+		console.log(`Starting monitoring for token: ${tokens}`);
+		[raydiumSocketRef, orcaSocketRef, meteoraSocketRef].forEach(socketRef => {
+			if (socketRef.current) {
+				socketRef.current.emit('startMonitor', { tokens });
+			} else {
+				console.error('Socket.IO client is not initialized');
+			}
+		});
+
     };
 
     const handleStopMonitoring = () => {

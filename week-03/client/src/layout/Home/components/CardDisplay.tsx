@@ -20,7 +20,7 @@ const CardDisplay: React.FC<{ token : Token }> = ({ token }) => {
 
     return (
     <div className="bg-zinc-900 text-gray-100 p-4 rounded-lg shadow-lg mb-4 border border-zinc-700 w-[17.5vw]
-        transition-all duration-300 ease-in-out
+        transition-all duration-300 ease-in-out group
         hover:border-white/50 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:bg-[#222225]">
         {/* Token Icon and Name */}
         <div className="flex items-center gap-2">
@@ -69,7 +69,7 @@ const CardDisplay: React.FC<{ token : Token }> = ({ token }) => {
                         </div>
                     </div>
                     <div className='transition-all duration-300 ease overflow-hidden' style={{ maxHeight: expandedIndexes.includes(index) ? '200px' : '0', opacity: expandedIndexes.includes(index) ? 1 : 0 }}>
-                        <div className="flex justify-between flex-col gap-1 mt-2 text-xs text-zinc-400 bg-zinc-800 p-2 rounded">
+                        <div className="flex justify-between flex-col gap-1 mt-2 text-xs text-zinc-400 bg-zinc-800 p-2 rounded group-hover:bg-zinc-700 transition-all duration-300 ease-in-out">
                             <div className="flex justify-between">
                                 <span>TVL</span>
                                 <span className="font-semibold">${dex.tvl.toLocaleString()}</span>
