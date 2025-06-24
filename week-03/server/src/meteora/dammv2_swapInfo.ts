@@ -66,12 +66,14 @@ export class DAMMPriceTracker {
     ) : null;
   }
 
-  // Method to get the highest TVL pool and calculate the price for 1 SOL
+  // Method to get the highest TVL pool
   async getHighestTvlPool(): Promise<any> {
     const pools = await this.fetchSolTokenPools();
     const pool = this.findHighestTvlPool(pools);
     if (!pool) return { error: "No DAMM SOL-token pool found." };
 
+  }
+  async getPriceByPool(pool: DAMMPoolData): Promise<any> {
     try {
       const poolState = await this.cpAmm.fetchPoolState(new PublicKey(pool.pool_address));
       if (!poolState || Object.keys(poolState).length === 0) {

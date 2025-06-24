@@ -15,15 +15,14 @@ import * as meteora from 'src/meteora/server';
 
 const delayBetweenConnectionsMs = 1500;
 
-async function connectAllTokenMint(tokens: string[], platform: any, client: Socket) {
+function connectAllTokenMint(tokens: string[], platform: any, client: Socket) {
 	for (const tokenMint of tokens) {
 		try {
-			await platform.startMonitor(tokenMint, client);
+			platform.startMonitor(tokenMint, client);
 			console.log(`Started monitoring token: ${tokenMint}`);
 		} catch (error) {
 			console.error(`Error starting monitor for token ${tokenMint}:`, error);
 		}
-		await new Promise(resolve => setTimeout(resolve, delayBetweenConnectionsMs));
 	}
 }
 
@@ -58,7 +57,7 @@ export class RaydiumGateway implements OnGatewayConnection, OnGatewayDisconnect 
 			return;
 		}
 
-		await connectAllTokenMint(tokens, raydium, client);
+		connectAllTokenMint(tokens, raydium, client);
 	}
 
 	@SubscribeMessage('stopMonitor')
@@ -93,7 +92,7 @@ export class OrcaGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		}
 
 		// Start monitoring the token mint
-		await connectAllTokenMint(tokens, orca, client)
+		connectAllTokenMint(tokens, orca, client)
 	}
 
 	@SubscribeMessage('stopMonitor')
@@ -128,7 +127,7 @@ export class Meteora implements OnGatewayConnection, OnGatewayDisconnect {
 		}
 
 		// Start monitoring the token mint
-		await connectAllTokenMint(tokens, meteora, client);
+		connectAllTokenMint(tokens, meteora, client);
 	}
 
 	@SubscribeMessage('stopMonitor')

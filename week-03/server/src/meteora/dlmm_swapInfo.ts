@@ -4,7 +4,6 @@ import DLMM from "@meteora-ag/dlmm";
 import { BN } from "bn.js";
 import BigNumber from "bignumber.js";
 import { SOL_MINT, DLMM_API_URL, connection, DLMMPoolData } from "./CONSTANTS";
-import { platform } from "os";
 
 // This class tracks prices from DLMM pools on Meteora
 export class DLMMPriceTracker {
@@ -68,12 +67,17 @@ export class DLMMPriceTracker {
     return 'UNKNOWN';
   }
 
-  // Method to get the highest TVL pool and calculate the price for 1 SOL
+  // Method to get the highest TVL pool 
   async getHighestTvlPool(): Promise<any> {
     const pools = await this.fetchSolTokenPools();
     const pool = this.findHighestLiquidityPool(pools);
     if (!pool) return { error: "No DLMM SOL-token pool found." };
 
+    return pool;
+
+  }
+
+  async getPriceByPool(pool: DLMMPoolData):  Promise<any> {
     try {
       const pairAddress = new PublicKey(pool.address);
       const dlmmPool = await DLMM.create(connection, pairAddress);

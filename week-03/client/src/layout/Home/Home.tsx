@@ -142,8 +142,16 @@ import {Token, Dex} from '../../config/interfaces';
 // ];
 
 const findMinPrice = (dexes: Dex[]) => {
-	return dexes.reduce((min, dex) => Math.min(min, dex.price), Infinity);
+	if (dexes.length === 0) return 0;
+	
+	return dexes.reduce((min, dex) => {
+		// Ignore dexes with price 0
+		if (dex.price === 0) return min;
+		return dex.price < min ? dex.price : min;
+	}, dexes[0].price);
 }
+
+const platformOrder = ['Raydium', 'Orca', 'Meteora V2'];
 
 const Home = () => {
 	const raydiumSocketRef = useRef<Socket | null>(null);
@@ -163,7 +171,7 @@ const Home = () => {
 			const tokenIndex = prevTokens.findIndex(token => token.address === data.mintB);
 			
 			if (tokenIndex === -1) {
-				// Token not found, create a new one
+				// Token not found, create a new one									
 				const newToken: Token = {
 					icon: data.logoURI || 'https://img-v1.raydium.io/icon/default.png',
 					name: data.symbolName,
@@ -171,14 +179,41 @@ const Home = () => {
 					currentPrice: data.price,
 					previousPrice: data.price,
 					priceChange: 0,
-					dexes: [{
+					dexes: [
+						{
+							name: platformOrder[0],
+							price: 0,
+							tvl: 0,
+							poolAddress: ''
+						},
+							{
+							name: platformOrder[1],
+							price: 0,
+							tvl: 0,
+							poolAddress: ''
+						},
+						{
+							name:  platformOrder[2],
+							price: 0,
+							tvl: 0,
+							poolAddress: ''
+						},
+					]
+				};
+
+				// Add dexes based on the platform
+				
+				const dexIndex = newToken.dexes.findIndex(dex => dex.name === data.platform);
+				if (dexIndex !== -1) {
+					newToken.dexes[dexIndex] = {
 						name: data.platform,
 						price: data.price,
 						tvl: data.tvl,
 						poolAddress: data.poolAddress
-					}]
-				};
-				console.log('Adding new token:', prevTokens.length, newToken);
+					}
+				}
+
+				// console.log('Adding new token:', prevTokens.length, newToken);
 				return [...prevTokens, newToken];
 			}
 
@@ -190,31 +225,19 @@ const Home = () => {
 			const dexIndex = token.dexes.findIndex(dex => dex.name === data.platform);
 			if (dexIndex !== -1) {
 				// Update existing dex price by creating a new array
-				token.dexes = token.dexes.map((dex, index) => 
-					index === dexIndex 
-						? {
-							...dex,
-							price: data.price,
-							tvl: data.tvl,
-							poolAddress: data.poolAddress
-						}
-						: dex
-				);
-			} else {
-				// Add new dex
-				token.dexes = [...token.dexes, {
+				token.dexes[dexIndex] = {
 					name: data.platform,
 					price: data.price,
 					tvl: data.tvl,
 					poolAddress: data.poolAddress
-				}];
+				}
 			}
 
 			const previousPrice = token.currentPrice;
 			const currentPrice = findMinPrice(token.dexes);
 			const priceChange = currentPrice - previousPrice;
 			const icon = updatedTokens[tokenIndex].icon == 'https://img-v1.raydium.io/icon/default.png' ? data.logoURI : updatedTokens[tokenIndex].icon;
-			console.log(icon)
+			// console.log(icon)
 			// Update token properties
 			updatedTokens[tokenIndex] = {
 				...token,

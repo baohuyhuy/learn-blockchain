@@ -3,7 +3,27 @@ import { DLMMPriceTracker } from "./dlmm_swapInfo";
 import { DAMMPriceTracker } from "./dammv2_swapInfo";
 import { Socket } from 'socket.io';
 
-async function getRealtimeSwapPrice(tokenAddress: PublicKey): Promise<any> {
+// Polling interval in milliseconds (e.g., 10 seconds)
+const POLLING_INTERVAL = 10000;
+
+interface PoolMonitor {
+  tokenMint: string;
+  client: Socket;
+  lastPrice?: number;
+  pool?: any; // Store the pool data
+  tracker?: DLMMPriceTracker | DAMMPriceTracker; // Store the tracker instance
+  protocolType?: 'dlmm' | 'damm'; // Store which protocol the pool belongs to
+  intervalId?: NodeJS.Timeout;
+}
+
+// Store active monitors by client ID
+const clientMonitors = new Map<string, PoolMonitor[]>();
+
+async function findHighestTvlPool(tokenAddress: PublicKey): Promise<{
+  pool: any;
+  tracker: DLMMPriceTracker | DAMMPriceTracker;
+  protocolType: 'dlmm' | 'damm';
+} | { error: string }> {
   const dlmmTracker = new DLMMPriceTracker(tokenAddress);
   const dammTracker = new DAMMPriceTracker(tokenAddress);
 
@@ -12,96 +32,129 @@ async function getRealtimeSwapPrice(tokenAddress: PublicKey): Promise<any> {
     dammTracker.getHighestTvlPool()
   ]);
 
-  console.log("DLMM Result:", dlmmResult);
-  console.log("DAMM Result:", dammResult);
+  // console.log("[Meteora] DLMM Result:", dlmmResult);
+  // console.log("[Meteora] DAMM Result:", dammResult);
 
-  const dlmmPool = dlmmResult.status === 'fulfilled' && !dlmmResult.value.error ? dlmmResult.value : null;
-  const dammPool = dammResult.status === 'fulfilled' && !dammResult.value.error ? dammResult.value : null;
+  // Extract pool data, handling potential errors
+  const dlmmPool = dlmmResult.status === 'fulfilled' && dlmmResult.value ? dlmmResult.value : null;
+  const dammPool = dammResult.status === 'fulfilled' && dammResult.value ? dammResult.value : null;
 
+  // If both protocols returned errors, return an error
   if (!dlmmPool && !dammPool) {
     return { error: "No pools found from both DLMM and DAMM protocols" };
   }
 
-   if (dlmmPool && dammPool) {
-    const dlmmTvl = parseFloat(dlmmPool.tvl || "0");
-    const dammTvl = parseFloat(dammPool.tvl || "0");
-    console.log(`Comparing TVL - DLMM: ${dlmmTvl}, DAMM: ${dammTvl}`);
-    return dlmmTvl > dammTvl ? dlmmPool : dammPool;
+  // If one protocol has an error but the other doesn't, return the successful one
+  if (!dlmmPool && dammPool) {
+    console.log(`[Meteora] DLMM returned error, using DAMM pool`);
+    return { pool: dammPool, tracker: dammTracker, protocolType: 'damm' };
   }
 
-  return dlmmPool || dammPool;
+  if (dlmmPool && !dammPool) {
+    console.log(`[Meteora] DAMM returned error, using DLMM pool`);
+    return { pool: dlmmPool, tracker: dlmmTracker, protocolType: 'dlmm' };
+  }
+
+  // If both protocols returned valid pools, compare TVL and return the one with higher TVL
+  const dlmmTvl = parseFloat(dlmmPool.tvl || "0");
+  const dammTvl = parseFloat(dammPool.tvl || "0");
+  console.log(`[Meteora] Comparing TVL - DLMM: ${dlmmTvl}, DAMM: ${dammTvl}`);
+  
+  if (dlmmTvl > dammTvl) {
+    return { pool: dlmmPool, tracker: dlmmTracker, protocolType: 'dlmm' };
+  } else {
+    return { pool: dammPool, tracker: dammTracker, protocolType: 'damm' };
+  }
 }
 
-class TokenTracker {
-  private stop: boolean = false;
-  private tokenMint: string;
-  private client: Socket;
-
-  constructor(tokenMint: string, client: Socket) {
-    this.tokenMint = tokenMint;
-    this.client = client;
-  }
-
-  private clientEmit(event: string, data: any) {
-    if (this.client) {
-      this.client.emit(event, data);
+async function pollPoolData(monitor: PoolMonitor) {
+  try {
+    if (!monitor.pool || !monitor.tracker) {
+      console.error(`[Meteora] Missing pool or tracker for token ${monitor.tokenMint}`);
+      return;
     }
-  }
 
-  async start() {
-    console.log(`[Meteora] Starting tracking for token: ${this.tokenMint}`);
+    let result;
+    if (monitor.protocolType === 'dlmm') {
+      result = await (monitor.tracker as DLMMPriceTracker).getPriceByPool(monitor.pool);
+    } else {
+      result = await (monitor.tracker as DAMMPriceTracker).getPriceByPool(monitor.pool);
+    }
+
+    if (result.error) {
+      console.error(`[Meteora] Error polling for token ${monitor.tokenMint}:`, result.error);
+      return;
+    }
+
+    console.log(`[Meteora] Price update for token ${monitor.tokenMint}:`, result);
     
-    while (!this.stop) {
-      try {
-        const result = await getRealtimeSwapPrice(new PublicKey(this.tokenMint));
+    monitor.client.emit('update', result);
 
-        if (result.error) {
-          console.error(`[Meteora] [Error] Token: ${this.tokenMint}`, result.error);
-          continue;
-        }
-
-        console.log(`[Meteora] [Token: ${this.tokenMint}]`, result);
-        this.clientEmit('update', result);
-      } catch (error: any) {
-        console.error(`[Meteora] [Error] Token: ${this.tokenMint}`, error.message);
-      }
-
-      // Wait for a fixed interval before the next check
-      await new Promise(resolve => setTimeout(resolve, 3000));
-    }
-  }
-
-  stopTracking() {
-    console.log(`[Meteora] Stopping tracking for token: ${this.tokenMint}`);
-    this.stop = true;
+  } catch (error) {
+    console.error(`[Meteora] Error polling for token ${monitor.tokenMint}:`, error);
   }
 }
-
-const tokenList: { tracker: TokenTracker; promise: Promise<void> }[] = [];
 
 async function startMonitor(tokenMint: string, client: Socket) {
-    try {
-        const tracker = new TokenTracker(tokenMint, client);
-        const promise = tracker.start();
+  try {
+    // First, find the highest TVL pool
+    const highestTvlPoolResult = await findHighestTvlPool(new PublicKey(tokenMint));
 
-        // Store the tracker and its promise in the tokenList
-        tokenList.push({ tracker, promise }); // Ignore 'await' here to avoid running only first tracker
-    } catch (error) {
-        console.error("[Meteora] Error in startMonitor:", error);
+    if ('error' in highestTvlPoolResult) {
+      console.error(`[Meteora] Error finding highest TVL pool for token ${tokenMint}:`, highestTvlPoolResult.error);
+      return;
     }
+    
+    // Create the monitor object with the pool and tracker information
+    const monitor: PoolMonitor = {
+      tokenMint,
+      client,
+      pool: highestTvlPoolResult.pool,
+      tracker: highestTvlPoolResult.tracker,
+      protocolType: highestTvlPoolResult.protocolType
+    };
+
+    console.log(`[Meteora] Starting monitor for token: ${tokenMint}, client: ${client.id}, protocol: ${monitor.protocolType}`);
+    
+    // Start polling
+    const intervalId = setInterval(() => pollPoolData(monitor), POLLING_INTERVAL);
+    monitor.intervalId = intervalId;
+    
+    // Store the monitor
+    if (!clientMonitors.has(client.id)) {
+      clientMonitors.set(client.id, []);
+    }
+    clientMonitors.get(client.id)?.push(monitor);
+    
+    console.log(`[Meteora] Started polling for token ${tokenMint}, client ${client.id}`);
+  } catch (error) {
+    console.error("[Meteora] Error in startMonitor:", error);
+    client.emit('error', {
+      message: 'Failed to start Meteora monitoring',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
 }
 
-async function stopMonitor() {
-    for (const { tracker } of tokenList) {
-        tracker.stopTracking();
+async function stopMonitor(client: Socket) {
+  try {
+    const monitors = clientMonitors.get(client.id) || [];
+    
+    // Stop all intervals for this client
+    for (const monitor of monitors) {
+      if (monitor.intervalId) {
+        clearInterval(monitor.intervalId);
+        console.log(`[Meteora] Stopped polling for token ${monitor.tokenMint}`);
+      }
     }
-
-    // Wait for all trackers to finish their start loops
-    await Promise.all(tokenList.map(({ promise }) => promise));
-    console.log("[Meteora] All token trackers stopped.");
-
-    tokenList.length = 0; // Clear the list
+    
+    // Remove client from map
+    clientMonitors.delete(client.id);
+    
+    console.log(`[Meteora] Stopped ${monitors.length} monitors for client: ${client.id}`);
+  } catch (error) {
+    console.error(`[Meteora] Error stopping monitors for client ${client.id}:`, error);
+  }
 }
-
 
 export { startMonitor, stopMonitor };
