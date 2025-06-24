@@ -9,67 +9,34 @@ import { Socket } from 'socket.io';
 // Set Decimal.js precision to 40 to handle large numbers accurately
 Decimal.set({precision: 40});
 
-function decodeTokenAccount(data: string): string{
-    const rawData = Buffer.from(data, 'base64');
-    const amountBytes = rawData.subarray(64, 72); // 8 bytes
-    const hexString = '0x' + amountBytes.reverse().toString('hex');
-    const decimalAmount = new Decimal(hexString);
-    // Convert back to bigint for compatibility with the rest of the code
-    return decimalAmount.toString();
-}
-
-function roundToNearest(value: number, precision: number): number {
-    const factor = Math.pow(10, precision);
-    return Math.round(value * factor) / factor;
-}
-
+// This class now handles a single websocket with multiple subscriptions
 class RaydiumWebsocket {
-    private vaultA: string;
-    private vaultB: string;
-    private decimalsA: number;
-    private decimalsB: number;
-    private mintA: string;
-    private mintB: string;
-    private mintASymbolName: string;
-    private mintBSymbolName: string;
-    private tvl: string;
-    private poolType: string;
-    private poolLogoURI: string;
-    private sqrtPriceX64: string | null;
-    private liquidity: string | null;
-    private poolId: string;
-    private amountA: string | null;
-    private amountB: string | null;
-    private subMap: Map<number, string>;
     private ws: WebSocket | null;
-
+    private subMap: Map<number, {
+        poolId: string,
+        poolType: string,
+        poolLogoURI: string,
+        tvl: string,
+        mintA: string,
+        mintB: string,
+        decimalsA: number,
+        decimalsB: number,
+        mintASymbolName: string,
+        mintBSymbolName: string,
+        sqrtPriceX64?: string,
+        liquidity?: string,
+        client: Socket
+    }>;
+    
     private reconnectAttempts: number = 0;
     private maxReconnectAttempts: number = 5;
     private reconnectInterval: number = 5000; // 5 seconds  
     private pingInterval: NodeJS.Timeout | null = null;
+    private nextId: number = 1;
 
-    private client: Socket;
-
-    constructor (config: RaydiumWebsocketConfig) {
-        this.vaultA = config.vaultA;
-        this.decimalsA = config.decimalsA;
-        this.mintA = config.mintA;
-        this.mintASymbolName = config.mintASymbolName;
-        this.vaultB = config.vaultB;
-        this.decimalsB = config.decimalsB;
-        this.mintB = config.mintB;
-        this.mintBSymbolName = config.mintBSymbolName;
-        this.poolId = config.poolId;
-        this.poolType = config.poolType;
-        this.poolLogoURI = config.poolLogoURI;
-        this.tvl = config.poolTvl;
-        this.sqrtPriceX64 = config.sqrtPriceX64 || null;
-        this.liquidity = config.liquidity || null;
-        this.client = config.client;
-        this.amountA = '';
-        this.amountB = '';
-        this.subMap = new Map<number, string>();
+    constructor() {
         this.ws = null;
+        this.subMap = new Map();
     }
 
     private setupPingInterval() {
@@ -99,30 +66,12 @@ class RaydiumWebsocket {
         }
     }
 
-    private cleanupData() {
-        this.subMap.clear(); // Clear subscriptions on close
-        this.amountA = ''; // Reset amounts on close
-        this.amountB = ''; // Reset amounts on close
-        this.sqrtPriceX64 = ''; // Reset sqrtPriceX64 on close
-        this.liquidity = ''; // Reset liquidity on close
-        this.poolId = ''; // Reset poolId on close
-        this.mintA = ''; // Reset mintA on close
-        this.mintB = ''; // Reset mintB on close
-        this.decimalsA = 0; // Reset decimalsA on close
-        this.decimalsB = 0; // Reset decimalsB on close
-        this.poolType = ''; // Reset poolType on close
-        this.poolLogoURI = ''; // Reset poolLogoURI on close
-        this.vaultA = ''; // Reset vaultA on close
-        this.vaultB = ''; // Reset vaultB on close
-    }
-
-    private clientEmit(event: string, data: any) {
-        if (this.client) {
-            this.client.emit(event, data);
-        }
-    }
-
     onMessage = (message: string) => {
+        if (!this.ws) {
+            console.error('WebSocket is not initialized. Cannot process message.');
+            return;
+        }
+
         if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
             console.error('WebSocket is not open. Cannot process message.');
             return;
@@ -130,149 +79,161 @@ class RaydiumWebsocket {
 
         const data = JSON.parse(message);
         
-        // This is a subscription message
+        // This is a subscription response message
         if ('result' in data && 'id' in data) {
             const sub_id = data.result;
+            const request_id = data.id;
             
-            if (this.poolType === 'classic' || this.poolType === 'standard') {
-                if (data.id === 1) {
-                    this.subMap[sub_id] = 'A';
-                    console.log(`Subscribed to vaultA (${this.vaultA}) successfully.`);
-                } else if (data.id === 2) {
-                    this.subMap[sub_id] = 'B';
-                    console.log(`Subscribed to vaultB (${this.vaultB}) successfully.`);
-                }
-            } else if (this.poolType === 'clmm' || this.poolType === 'concentrated') {
-                if (data.id === 3) {
-                    this.subMap[sub_id] = 'POOL';
-                    console.log(`Subscribed to pool (${this.poolId}) successfully.`);
+            // Update our map with the subscription ID from the server
+            for (const [id, poolData] of this.subMap.entries()) {
+                if (id === request_id) {
+                    // Create a new entry with the subscription ID and remove the old one
+                    this.subMap.set(sub_id, poolData);
+                    this.subMap.delete(id);
+                    
+                    console.log(`Subscribed to ${poolData.poolType} pool (${poolData.poolId}) successfully.`);
+                    break;
                 }
             }
-        } else if ('method' in data && data.method === 'accountNotification') {
+        } 
+        // This is a notification for a subscribed account
+        else if ('method' in data && data.method === 'accountNotification') {
             const sub_id = data.params.subscription;
-            const accountData = data.params.result.value.data[0];
             
-            if (this.poolType === 'classic' || this.poolType === 'standard') {
-                // Decode the account data for vaultA and vaultB
-                if (this.subMap[sub_id] === 'A') {
-                    this.amountA = decodeTokenAccount(accountData);
-                } else if (this.subMap[sub_id] === 'B') {
-                    this.amountB = decodeTokenAccount(accountData);
-                }
-
-                const amountA = new Decimal(this.amountA || '0');
-                const amountB = new Decimal(this.amountB || '0');
-
-                // Log the amounts
-                if (amountA > Decimal(0) && amountB > Decimal(0)) {
-                    console.log('Real-time price update:');
-                    let price: Decimal;
-
-                    console.log(amountA, amountB);
-
-                    if (this.mintA === SOL_MINT) {
-                        price = amountB
-                            .div(amountA)
-                            .mul(new Decimal(10).pow(this.decimalsA - this.decimalsB));
-                    } else if (this.mintB === SOL_MINT) {
-                        price =  amountA
-                            .div(amountB)
-                            .mul(new Decimal(10).pow(this.decimalsB - this.decimalsA));
-                    } else {
-                        console.log('Unsupported mint for price calculation');
-                        return;
-                    }
-
-                    console.log(`1 SOL = ${price} ${this.mintA === SOL_MINT ? this.mintB : this.mintA}`);
-                    this.clientEmit('update', {
-                        platform: 'Raydium',
-                        logoURI: this.poolLogoURI,
-                        poolAddress: this.poolId,
-                        symbolName: this.mintBSymbolName,
-                        price: Number(price),
-                        tvl: Number(this.tvl),
-                        mintB: this.mintB,
-                    });
-                }
-            } else if (this.poolType === 'clmm' || this.poolType === 'concentrated') {
-                if (this.subMap[sub_id] === 'POOL') {
+            if (this.subMap.has(sub_id)) {
+                const poolData = this.subMap.get(sub_id);
+                if (!poolData) return;
+                
+                if (poolData.poolType === 'classic' || poolData.poolType === 'standard') {
+                    // Decode the account data for the AMM pool
+                    this.handleAmmPoolUpdate(poolData);
+                } 
+                else if (poolData.poolType === 'clmm' || poolData.poolType === 'concentrated') {
                     // Decode the account data for the CLMM pool
-                    decodePoolWithNode(this.poolId, this.poolType)
-                        .then((result) => {
-                            if (result) {
-                                this.sqrtPriceX64 = result.sqrtPriceX64;
-                                this.liquidity = result.liquidity;
-                                this.decimalsA = result.decimalsA;
-                                this.decimalsB = result.decimalsB;
-                                this.mintA = result.mintA;
-                                this.mintB = result.mintB;
-
-                                const sqrtPriceX64 = new Decimal(this.sqrtPriceX64 || '0');
-                                const liquidity = new Decimal(this.liquidity || '0');
-                                const Q64 = new Decimal(2).pow(64);
-                                const sqrtPrice = new Decimal(sqrtPriceX64).div(Q64);
-
-                                const amountInSol = new Decimal(1); // 1 SOL for price calculation
-                                const decimalsIn = this.decimalsA;
-                                const decimalsOut = this.decimalsB;
-                                const feeRate = new Decimal(0); // Raydium pools do not include fee rate in the pool data
-
-                                // Convert amountInSol to atomic units
-                                const amountInAtomic = amountInSol.mul(new Decimal(10).pow(decimalsIn));
-                                const amountInAfterFee =  amountInAtomic.mul(new Decimal(1).sub(feeRate));
-
-                                // Calculate sqrtPriceNew and amount out using Decimal
-                                const one = new Decimal(1);
-
-                                // sqrt_price_new = 1 / (1 / sqrt_price + Δx / L)
-                                const sqrtPriceNew = one.div(
-                                    one.div(sqrtPrice).add(amountInAfterFee.div(liquidity))
-                                );
-
-                                // Δy = L * (sqrt_price_new - sqrt_price)
-                                const deltaY = liquidity.mul(sqrtPriceNew.sub(sqrtPrice));
-
-                                // Convert to human-readable units
-                                const amountOut = deltaY.div(new Decimal(10).pow(decimalsOut));
-
-                                let price: Decimal;
-                                if (this.mintA === SOL_MINT) {
-                                    price = new Decimal(amountOut.toString())
-                                        .div(new Decimal(amountInSol.toString()))
-                                        .mul(new Decimal(10).pow(decimalsIn - decimalsOut));
-                                } else if (this.mintB === SOL_MINT) {
-                                    price = new Decimal(amountInSol.toString())
-                                        .div(new Decimal(amountOut.toString()))
-                                        .mul(new Decimal(10).pow(decimalsOut - decimalsIn));
-                                } else {
-                                    console.log('Unsupported mint for price calculation');
-                                    return;
-                                }
-
-                                // Price is negative because it's the amount taken out of the pool
-                                price = price.negated();
-
-                                console.log('Real-time price update:');
-                                console.log(`1 SOL = ${price} ${this.mintA === SOL_MINT ? this.mintB : this.mintA}`);
-                                this.clientEmit('update', {
-                                    platform: 'Raydium',
-                                    poolAddress: this.poolId,
-                                    logoURI: this.poolLogoURI,
-                                    symbolName: this.mintBSymbolName,
-                                    price: Number(price),
-                                    tvl: Number(this.tvl),
-                                    mintB: this.mintB,
-                                });
-                            }
-                        })
-                        .catch((error) => {
-                            console.error('Error decoding CLMM pool:', error);
-                        });
+                    this.handleClmmPoolUpdate(poolData);
                 }
             }
         } else {
             console.log('Received message:', data);
         }
+    }
+
+    private handleAmmPoolUpdate(poolData: any) {
+        decodePoolWithNode(poolData.poolId, poolData.poolType)
+            .then((result) => {
+                if (result) {
+                    const mintA = result.mintA;
+                    const mintB = result.mintB;
+                    const decimalsA = result.decimalsA;
+                    const decimalsB = result.decimalsB;
+
+                    const amountA = Decimal(result.mintAmountA || '0');
+                    const amountB = Decimal(result.mintAmountB || '0');
+
+                    // Log the amounts
+                    if (amountA > Decimal(0) && amountB > Decimal(0)) {
+                        console.log('Real-time price update:');
+                        let price: Decimal;
+
+                        console.log(amountA, amountB);
+
+                        if (mintA === SOL_MINT) {
+                            price = amountB.div(amountA)
+                        } else if (mintB === SOL_MINT) {
+                            price = amountA.div(amountB)
+                        } else {
+                            console.log('Unsupported mint for price calculation');
+                            return;
+                        }
+
+                        console.log(`1 SOL = ${price} ${mintA === SOL_MINT ? mintB : mintA}`);
+                        poolData.client.emit('update', {
+                            platform: 'Raydium',
+                            logoURI: poolData.poolLogoURI,
+                            poolAddress: poolData.poolId,
+                            symbolName: poolData.mintBSymbolName,
+                            price: Number(price),
+                            tvl: Number(poolData.tvl),
+                            mintB: mintB,
+                        });
+                    }
+                }
+            })
+            .catch((error) => {
+                console.error('Error decoding AMM pool:', error);
+            });
+    }
+
+    private handleClmmPoolUpdate(poolData: any) {
+        decodePoolWithNode(poolData.poolId, poolData.poolType)
+            .then((result) => {
+                if (result) {
+                    const sqrtPriceX64 = new Decimal(result.sqrtPriceX64 || '0');
+                    const liquidity = new Decimal(result.liquidity || '0');
+                    const decimalsA = result.decimalsA;
+                    const decimalsB = result.decimalsB;
+                    const mintA = result.mintA;
+                    const mintB = result.mintB;
+
+                    const Q64 = new Decimal(2).pow(64);
+                    const sqrtPrice = new Decimal(sqrtPriceX64).div(Q64);
+
+                    const amountInSol = new Decimal(1); // 1 SOL for price calculation
+                    const decimalsIn = decimalsA;
+                    const decimalsOut = decimalsB;
+                    const feeRate = new Decimal(0); // Raydium pools do not include fee rate in the pool data
+
+                    // Convert amountInSol to atomic units
+                    const amountInAtomic = amountInSol.mul(new Decimal(10).pow(decimalsIn));
+                    const amountInAfterFee = amountInAtomic.mul(new Decimal(1).sub(feeRate));
+
+                    // Calculate sqrtPriceNew and amount out using Decimal
+                    const one = new Decimal(1);
+
+                    // sqrt_price_new = 1 / (1 / sqrt_price + Δx / L)
+                    const sqrtPriceNew = one.div(
+                        one.div(sqrtPrice).add(amountInAfterFee.div(liquidity))
+                    );
+
+                    // Δy = L * (sqrt_price_new - sqrt_price)
+                    const deltaY = liquidity.mul(sqrtPriceNew.sub(sqrtPrice));
+
+                    // Convert to human-readable units
+                    const amountOut = deltaY.div(new Decimal(10).pow(decimalsOut));
+
+                    let price: Decimal;
+                    if (mintA === SOL_MINT) {
+                        price = new Decimal(amountOut.toString())
+                            .div(new Decimal(amountInSol.toString()))
+                            .mul(new Decimal(10).pow(decimalsIn - decimalsOut));
+                    } else if (mintB === SOL_MINT) {
+                        price = new Decimal(amountInSol.toString())
+                            .div(new Decimal(amountOut.toString()))
+                            .mul(new Decimal(10).pow(decimalsOut - decimalsIn));
+                    } else {
+                        console.log('Unsupported mint for price calculation');
+                        return;
+                    }
+
+                    // Price is negative because it's the amount taken out of the pool
+                    price = price.negated();
+
+                    console.log('Real-time price update:');
+                    console.log(`1 SOL = ${price} ${mintA === SOL_MINT ? mintB : mintA}`);
+                    poolData.client.emit('update', {
+                        platform: 'Raydium',
+                        poolAddress: poolData.poolId,
+                        logoURI: poolData.poolLogoURI,
+                        symbolName: poolData.mintBSymbolName,
+                        price: Number(price),
+                        tvl: Number(poolData.tvl),
+                        mintB: mintB,
+                    });
+                }
+            })
+            .catch((error) => {
+                console.error('Error decoding CLMM pool:', error);
+            });
     }
 
     onError = (error: Error) => {
@@ -282,27 +243,14 @@ class RaydiumWebsocket {
     onClose = () => {
         console.log('WebSocket connection closed.');
         
-        // Unsubscribe from all accounts if WebSocket is still open
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.subMap.forEach((_, subId) => {
-                this.ws?.send(JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: 4,
-                    method: 'accountUnsubscribe',
-                    params: [subId]
-                }));
-            });
-        }
-        
         if (this.pingInterval) {
             clearInterval(this.pingInterval);
             this.pingInterval = null;
         }
 
         this.ws = null;
-        this.cleanupData(); // Clean up data on close
 
-        // Optional: Add reconnection logic
+        // Optional: Add reconnection logic if needed
         // this.reconnect();
     }
 
@@ -311,39 +259,29 @@ class RaydiumWebsocket {
         this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
         this.setupPingInterval();
 
-        if (this.poolType === 'classic' || this.poolType === 'standard') {
-            // Subscribe to vaultA and vaultB
-            this.ws?.send(JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'accountSubscribe',
-                params: [this.vaultA, { encoding: 'base64', commitment: 'confirmed' }]
-            }));
-
-            this.ws?.send(JSON.stringify({
-                jsonrpc: '2.0',
-                id: 2,
-                method: 'accountSubscribe',
-                params: [this.vaultB, { encoding: 'base64', commitment: 'confirmed' }]
-            }));
-        } else if (this.poolType === 'clmm' || this.poolType === 'concentrated') {
-            // Subscribe to the CLMM pool
-            this.ws?.send(JSON.stringify({
-                jsonrpc: '2.0',
-                id: 3,
-                method: 'accountSubscribe',
-                params: [this.poolId, { encoding: 'base64', commitment: 'confirmed' }]
-            }));
+        // Resubscribe to all pools if the connection was reestablished
+        for (const [id, poolData] of this.subMap.entries()) {
+            // Only resubscribe to pools that have numeric IDs (not subscription IDs)
+            if (typeof id === 'number' && id < 1000) {
+                this.subscribeToPool(poolData.poolId);
+            }
         }
     }
 
-    connect = () => {
-        if (this.ws) {
+    connect = async () => {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             console.log('WebSocket is already connected.');
             return;
         }
 
         this.ws = new WebSocket(SOLANA_MAINNET_WS);
+
+        while (!this.ws) {
+            console.log('Websocket not initialized, retrying...');
+            this.ws = new WebSocket(SOLANA_MAINNET_WS);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
 
         this.ws.on('open', this.onOpen);
         this.ws.on('message', this.onMessage);
@@ -354,16 +292,82 @@ class RaydiumWebsocket {
         });
     }
 
+    subscribeToPool = (poolId: string) => {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket is not connected. Cannot subscribe.');
+            return false;
+        }
+
+        const requestId = this.nextId++;
+        
+        this.ws.send(JSON.stringify({
+            jsonrpc: '2.0',
+            id: requestId,
+            method: 'accountSubscribe',
+            params: [poolId, { encoding: 'base64', commitment: 'confirmed' }]
+        }));
+
+        return requestId;
+    }
+
+    addPool = (config: RaydiumWebsocketConfig) => {
+        // Ensure WebSocket is connected
+        if (!this.ws) {
+            this.connect();
+        } else if (this.ws.readyState !== WebSocket.OPEN) {
+            // If websocket exists but not open, reconnect
+            this.connect();
+        }
+
+        // Create a temporary map entry with the request ID
+        const requestId = this.subscribeToPool(config.poolId);
+        
+        if (requestId) {
+            this.subMap.set(requestId, {
+                poolId: config.poolId,
+                poolType: config.poolType,
+                poolLogoURI: config.poolLogoURI,
+                tvl: config.poolTvl,
+                mintA: config.mintA,
+                mintB: config.mintB,
+                decimalsA: config.decimalsA,
+                decimalsB: config.decimalsB,
+                mintASymbolName: config.mintASymbolName,
+                mintBSymbolName: config.mintBSymbolName,
+                sqrtPriceX64: config.sqrtPriceX64,
+                liquidity: config.liquidity,
+                client: config.client
+            });
+            
+            return true;
+        }
+        
+        return false;
+    }
+
+    unsubscribeFromPool = (subId: number) => {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket is not connected. Cannot unsubscribe.');
+            return;
+        }
+
+        this.ws.send(JSON.stringify({
+            jsonrpc: '2.0',
+            id: this.nextId++,
+            method: 'accountUnsubscribe',
+            params: [subId]
+        }));
+
+        this.subMap.delete(subId);
+    }
+
     disconnect = () => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             // Unsubscribe from all accounts before closing
-            this.subMap.forEach((_, subId) => {
-                this.ws?.send(JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: 4, // Using a new ID for unsubscribe
-                    method: 'accountUnsubscribe',
-                    params: [subId]
-                }));
+            const subscriptions = Array.from(this.subMap.keys()).filter(id => typeof id === 'number' && id > 1000);
+            
+            subscriptions.forEach(subId => {
+                this.unsubscribeFromPool(subId);
             });
 
             // Wait briefly for unsubscribe messages to be sent
@@ -383,7 +387,31 @@ class RaydiumWebsocket {
             this.pingInterval = null;
         }
 
-        this.cleanupData(); // Clean up data on disconnect
+        // Clear the subscription map
+        this.subMap.clear();
+    }
+
+    removeAllPoolsForClient(client: Socket) {
+        // Find all subscriptions for this client
+        const subscriptionsToRemove: number[] = [];
+        
+        for (const [subId, poolData] of this.subMap.entries()) {
+            if (poolData.client.id === client.id) {
+                subscriptionsToRemove.push(Number(subId));
+            }
+        }
+        
+        // Unsubscribe from each pool
+        subscriptionsToRemove.forEach(subId => {
+            this.unsubscribeFromPool(subId);
+        });
+        
+        console.log(`Removed ${subscriptionsToRemove.length} subscriptions for client ${client.id}`);
+        
+        // If no more subscriptions, disconnect the websocket
+        if (this.subMap.size === 0) {
+            this.disconnect();
+        }
     }
 }
 

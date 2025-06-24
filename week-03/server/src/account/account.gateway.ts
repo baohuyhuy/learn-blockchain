@@ -13,6 +13,29 @@ import * as raydium from 'src/raydium/server';
 import * as orca from 'src/orca/server';
 import * as meteora from 'src/meteora/server';
 
+const delayBetweenConnectionsMs = 1500;
+
+async function connectAllTokenMint(tokens: string[], platform: any, client: Socket) {
+	for (const tokenMint of tokens) {
+		try {
+			await platform.startMonitor(tokenMint, client);
+			console.log(`Started monitoring token: ${tokenMint}`);
+		} catch (error) {
+			console.error(`Error starting monitor for token ${tokenMint}:`, error);
+		}
+		await new Promise(resolve => setTimeout(resolve, delayBetweenConnectionsMs));
+	}
+}
+
+async function stopAllTokenMint(platform: any, client: Socket) {
+	try {
+		await platform.stopMonitor();
+		console.log(`Stopped monitoring for client: ${client.id}`);
+	} catch (error) {
+		console.error(`Error stopping monitor for client ${client.id}:`, error);
+	}
+}
+
 @WebSocketGateway({ cors: true, namespace: '/raydium' })
 export class RaydiumGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	@WebSocketServer()
@@ -27,33 +50,23 @@ export class RaydiumGateway implements OnGatewayConnection, OnGatewayDisconnect 
 	}
 
 	@SubscribeMessage('startMonitor')
-	handleMonitor(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
-		const { tokenMint } = data;
+	async handleMonitor(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
+		const { tokens } = data;
 
-		console.log(`Client ${client.id} monitoring: ${tokenMint}`);
+		if (!tokens || tokens.length === 0) {
+			console.error('No tokens provided for monitoring');
+			return;
+		}
 
-		// Start monitoring the token mint
-		raydium.startMonitor(tokenMint, client)
-			.then(() => {
-				console.log(`Started monitoring token: ${tokenMint} for client: ${client.id}`);
-			})
-			.catch((error) => {
-				console.error(`Error starting monitor for token ${tokenMint}:`, error);
-			});
+		await connectAllTokenMint(tokens, raydium, client);
 	}
 
 	@SubscribeMessage('stopMonitor')
-	handleStopMonitor(@ConnectedSocket() client: Socket) {
+	async handleStopMonitor(@ConnectedSocket() client: Socket) {
 		console.log(`Client ${client.id} stopped monitoring`);
 
 		// Stop monitoring
-		raydium.stopMonitor()
-			.then(() => {
-				console.log(`Stopped monitoring for client: ${client.id}`);
-			})
-			.catch((error) => {
-				console.error(`Error stopping monitor for client ${client.id}:`, error);
-			});
+		await stopAllTokenMint(raydium, client)
 	}
 }
 
@@ -71,33 +84,24 @@ export class OrcaGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	@SubscribeMessage('startMonitor')
-	handleMonitor(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
-		const { tokenMint } = data;
+	async handleMonitor(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
+		const { tokens } = data;
 
-		console.log(`Client ${client.id} monitoring: ${tokenMint}`);
+		if (!tokens || tokens.length === 0) {
+			console.error('No tokens provided for monitoring');
+			return;
+		}
 
 		// Start monitoring the token mint
-		orca.startMonitor(tokenMint, client)
-			.then(() => {
-				console.log(`Started monitoring token: ${tokenMint} for client: ${client.id}`);
-			})
-			.catch((error) => {
-				console.error(`Error starting monitor for token ${tokenMint}:`, error);
-			});
+		await connectAllTokenMint(tokens, orca, client)
 	}
 
 	@SubscribeMessage('stopMonitor')
-	handleStopMonitor(@ConnectedSocket() client: Socket) {
+	async handleStopMonitor(@ConnectedSocket() client: Socket) {
 		console.log(`Client ${client.id} stopped monitoring`);
 
 		// Stop monitoring
-		orca.stopMonitor()
-			.then(() => {
-				console.log(`Stopped monitoring for client: ${client.id}`);
-			})
-			.catch((error) => {
-				console.error(`Error stopping monitor for client ${client.id}:`, error);
-			});
+		await stopAllTokenMint(orca, client)
 	}
 }
 
@@ -115,32 +119,23 @@ export class Meteora implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	@SubscribeMessage('startMonitor')
-	handleMonitor(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
-		const { tokenMint } = data;
+	async handleMonitor(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
+		const { tokens } = data;
 
-		console.log(`Client ${client.id} monitoring: ${tokenMint}`);
+		if (!tokens || tokens.length === 0) {
+			console.error('No tokens provided for monitoring');
+			return;
+		}
 
 		// Start monitoring the token mint
-		meteora.startMonitor(tokenMint, client)
-			.then(() => {
-				console.log(`Started monitoring token: ${tokenMint} for client: ${client.id}`);
-			})
-			.catch((error) => {
-				console.error(`Error starting monitor for token ${tokenMint}:`, error);
-			});
+		await connectAllTokenMint(tokens, meteora, client);
 	}
 
 	@SubscribeMessage('stopMonitor')
-	handleStopMonitor(@ConnectedSocket() client: Socket) {
+	async handleStopMonitor(@ConnectedSocket() client: Socket) {
 		console.log(`Client ${client.id} stopped monitoring`);
 
 		// Stop monitoring
-		meteora.stopMonitor()
-			.then(() => {
-				console.log(`Stopped monitoring for client: ${client.id}`);
-			})
-			.catch((error) => {
-				console.error(`Error stopping monitor for client ${client.id}:`, error);
-			});
+		await stopAllTokenMint(meteora, client);
 	}
 }

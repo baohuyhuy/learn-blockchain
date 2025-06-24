@@ -4,10 +4,25 @@ import decodePoolWithNode from "./decode_pool.js";
 import { RaydiumWebsocketConfig } from "./interfaces.js";
 import { Socket } from 'socket.io';
 
-const raydiumWsList: RaydiumWebsocket[] = [];
+// Create a single shared WebSocket instance
+let raydiumWs: RaydiumWebsocket | null = null;
+
+// Map to track clients and their tokens
+const clientTokenMap = new Map<string, string[]>();
 
 async function startMonitor(tokenMint: string, client: Socket) {
     try {
+        // Initialize the WebSocket if it doesn't exist
+        if (!raydiumWs) {
+            raydiumWs = new RaydiumWebsocket();
+        }
+        
+        // Track this token for the client
+        if (!clientTokenMap.has(client.id)) {
+            clientTokenMap.set(client.id, []);
+        }
+        clientTokenMap.get(client.id)?.push(tokenMint);
+
         const poolData = await fetchHighestTVLPool(tokenMint);
         console.log("[Raydium] Fetched pool data:", poolData);
 
@@ -48,30 +63,27 @@ async function startMonitor(tokenMint: string, client: Socket) {
             client: client
         };
 
-        // Create a new RaydiumWebsocket instance
-        const raydiumWs = new RaydiumWebsocket(config);
+        // Add the pool to the websocket instance
+        raydiumWs.addPool(config);
 
-        // Connect to the WebSocket
-        raydiumWs.connect();
-
-        // Add the new RaydiumWebsocket instance to the list
-        raydiumWsList.push(raydiumWs);
     } catch (error) {
-        console.error("[Raydium] Error in main function:", error);
+        console.error("[Raydium] Error in startMonitor:", error);
     }
 }
 
-async function stopMonitor() {
-    // Disconnect all RaydiumWebsocket instances
-    raydiumWsList.forEach((ws) => {
-        if (ws) {
-            ws.disconnect();
-        }
-    });
+async function stopMonitor(client: Socket) {
+    if (!raydiumWs) {
+        console.log("[Raydium] No active WebSocket connection to stop.");
+        return;
+    }
 
-    // Clear the list of RaydiumWebsocket instances
-    raydiumWsList.length = 0;
-    console.log("[Raydium] All WebSocket connections stopped.");
+    // Remove all pools for this client
+    raydiumWs.removeAllPoolsForClient(client);
+    
+    // Clean up the client token map
+    clientTokenMap.delete(client.id);
+    
+    console.log(`[Raydium] Stopped monitoring for client: ${client.id}`);
 }
 
-export {startMonitor, stopMonitor};
+export { startMonitor, stopMonitor };
