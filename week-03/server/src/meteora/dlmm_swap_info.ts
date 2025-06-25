@@ -3,7 +3,7 @@ import { getMint } from "@solana/spl-token";
 import DLMM from "@meteora-ag/dlmm";
 import { BN } from "bn.js";
 import BigNumber from "bignumber.js";
-import { SOL_MINT, DLMM_API_URL, connection, DLMMPoolData } from "./CONSTANTS";
+import { SOL_MINT, DLMM_API_URL, connection, DLMMPoolData } from "./types";
 
 // This class tracks prices from DLMM pools on Meteora
 export class DLMMPriceTracker {
@@ -127,7 +127,7 @@ export class DLMMPriceTracker {
       );
 
       return {
-        platform: 'Meteora V2',
+        platform: 'Meteora',
         poolAddress: pool.address,
         price: realTimePrice ? parseFloat(realTimePrice.toFixed(6)) : null,
         tvl: parseFloat(pool.liquidity || "0"),

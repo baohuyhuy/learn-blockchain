@@ -1,10 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
-import { DLMMPriceTracker } from "./dlmm_swapInfo";
-import { DAMMPriceTracker } from "./dammv2_swapInfo";
+import { DLMMPriceTracker } from "./dlmm_swap_info";
+import { DAMMPriceTracker } from "./dammv2_swap_info";
 import { Socket } from 'socket.io';
-
-// Polling interval in milliseconds (e.g., 10 seconds)
-const POLLING_INTERVAL = 10000;
 
 interface PoolMonitor {
   tokenMint: string;
@@ -95,7 +92,7 @@ async function pollPoolData(monitor: PoolMonitor) {
   }
 }
 
-async function startMonitor(tokenMint: string, client: Socket) {
+async function startMonitor(tokenMint: string, client: Socket, pollingInterval: number) {
   try {
     // First, find the highest TVL pool
     const highestTvlPoolResult = await findHighestTvlPool(new PublicKey(tokenMint));
@@ -117,7 +114,7 @@ async function startMonitor(tokenMint: string, client: Socket) {
     console.log(`[Meteora] Starting monitor for token: ${tokenMint}, client: ${client.id}, protocol: ${monitor.protocolType}`);
     
     // Start polling
-    const intervalId = setInterval(() => pollPoolData(monitor), POLLING_INTERVAL);
+    const intervalId = setInterval(() => pollPoolData(monitor), pollingInterval);
     monitor.intervalId = intervalId;
     
     // Store the monitor

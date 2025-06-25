@@ -3,16 +3,11 @@ import {
   address,
   Address,
   createSolanaRpc,
-  RpcMainnet,
-  SolanaRpcApiMainnet,
 } from "@solana/kit";
-import { WSOL } from "./CONTANTS";
+import { WSOL } from "./constants";
 import { fetchWhirlpool } from "@orca-so/whirlpools-client";
 import { sqrtPriceToPrice } from "@orca-so/whirlpools-core";
 import { Socket } from 'socket.io';
-
-// Polling interval in milliseconds (e.g., 10 seconds)
-const POLLING_INTERVAL = 10000;
 
 interface PoolData {
   poolAddress: string;
@@ -125,7 +120,7 @@ async function findLargestTVLPool(token: string): Promise<PoolData | null> {
   }
 }
 
-async function startMonitor(tokenMint: string, client: Socket) {
+async function startMonitor(tokenMint: string, client: Socket, pollingInterval: number) {
   try {
     const poolData = await findLargestTVLPool(tokenMint);
     
@@ -146,7 +141,7 @@ async function startMonitor(tokenMint: string, client: Socket) {
     };
     
     // Start polling
-    const intervalId = setInterval(() => pollPoolData(monitor), POLLING_INTERVAL);
+    const intervalId = setInterval(() => pollPoolData(monitor), pollingInterval);
     monitor.intervalId = intervalId;
     
     // Store the monitor

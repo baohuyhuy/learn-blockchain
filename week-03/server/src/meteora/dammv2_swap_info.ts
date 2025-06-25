@@ -3,7 +3,7 @@ import { CpAmm, getPriceFromSqrtPrice } from "@meteora-ag/cp-amm-sdk";
 import { getMint } from "@solana/spl-token";
 import { BN } from "bn.js";
 import BigNumber from "bignumber.js";
-import { SOL_MINT, DAMM_API_URL, connection, DAMMPoolData } from "./CONSTANTS";
+import { SOL_MINT, DAMM_API_URL, connection, DAMMPoolData } from "./types";
 
 // This class tracks prices from DAMMv2 pools on Meteora
 export class DAMMPriceTracker {
@@ -127,7 +127,7 @@ export class DAMMPriceTracker {
       }
 
       return {
-        platform: "Meteora V2",
+        platform: "Meteora",
         poolAddress: pool.pool_address,
         price: Number(amountOut.toFixed(6)),
         tvl: parseFloat(pool.tvl || "0"),

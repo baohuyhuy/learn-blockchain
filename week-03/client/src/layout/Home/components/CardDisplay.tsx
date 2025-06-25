@@ -4,11 +4,19 @@ import ArrowDropDownCircleOutlinedIcon from '@mui/icons-material/ArrowDropDownCi
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import { Token, Dex } from "../../../config/interfaces";
 
+import { RaydiumPoolURL, OrcaPoolURL, MeteoraPoolURL } from "../../../config/interfaces";
+
 const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-6)}`;
 
 const CardDisplay: React.FC<{ token : Token }> = ({ token }) => {
     const priceChangePercentage = (token.priceChange / token.previousPrice) * 100;
     const minPrice = token.currentPrice;
+
+    const poolLink: { [key: string]: string } = {
+        Raydium: `${RaydiumPoolURL}${token.address}`,
+        Orca: `${OrcaPoolURL}${token.address}`,
+        Meteora: `${MeteoraPoolURL}${token.address}`
+    };
 
     const [expandedIndexes, setExpandedIndexes] = useState<number[]>([]);
 
@@ -17,6 +25,48 @@ const CardDisplay: React.FC<{ token : Token }> = ({ token }) => {
             prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
         );
     }
+
+    // Store dex blink states
+    const [dexBlinkStates, setDexBlinkStates] = useState<{
+        [key: number]: { isBlinking: boolean; isIncrease: boolean }
+    }>({});
+    
+    // Store previous values for comparison
+    const prevDexValues = useRef<{ [key: number]: number }>({});
+
+    // Check for price changes and trigger blink effect
+    useEffect(() => {
+        const newBlinkStates: { [key: number]: { isBlinking: boolean; isIncrease: boolean } } = {};
+        let hasChanges = false;
+        
+        token.dexes.forEach((dex, index) => {
+            const prevPrice = prevDexValues.current[index] || 0;
+            
+            // If we have a previous price and it's different, trigger blink
+            if (prevPrice !== 0) {
+                newBlinkStates[index] = {
+                    isBlinking: true,
+                    isIncrease: dex.price >= prevPrice
+                };
+                hasChanges = true;
+            }
+            
+            // Update previous price reference
+            prevDexValues.current[index] = dex.price;
+        });
+        
+        if (hasChanges) {
+            // Set the blink states
+            setDexBlinkStates(newBlinkStates);
+            
+            // Clear blink after animation completes
+            const timer = setTimeout(() => {
+                setDexBlinkStates({});
+            }, 1000);
+            
+            return () => clearTimeout(timer);
+        }
+    }, [token.dexes[0].price, token.dexes[1].price, token.dexes[2].price]);
 
     return (
     <div className="bg-zinc-900 text-gray-100 p-4 rounded-lg shadow-lg mb-4 border border-zinc-700 w-[17.5vw]
@@ -41,9 +91,9 @@ const CardDisplay: React.FC<{ token : Token }> = ({ token }) => {
 
         {/* Best price Information */}
         <div className="mt-2">
-            <div className="text-2xl font-bold">{minPrice.toFixed(2)} {token.name}</div>
+            <div className="text-2xl font-bold">{minPrice.toFixed(6)} {token.name}</div>
             <div className="flex justify-between items-center text-sm text-zinc-500">
-                <span style={{color: token.priceChange >= 0 ? 'green' : 'red'}}>
+                <span style={{color: token.priceChange >= 0 ? 'limegreen' : 'red'}}>
                     {priceChangePercentage >= 0 ? '↑' : '↓'} {priceChangePercentage.toFixed(2)}%
                 </span>
                 <span>({token.priceChange.toFixed(2)})</span>
@@ -57,17 +107,33 @@ const CardDisplay: React.FC<{ token : Token }> = ({ token }) => {
         <div className="mt-2">
             <h3 className="text-xs font-bold uppercase text-gray-300 mb-2">DEX Prices</h3>
             <ul className="text-sm text-gray-400">
-            {token.dexes.map((dex, index) => (
+            {token.dexes.map((dex: Dex, index) => {
+                // Get blink state for this dex
+                const blinkState = dexBlinkStates[index];
+                const isBlinking = blinkState?.isBlinking || false;
+                const isIncrease = blinkState?.isIncrease || false;
+                
+                // Apply the appropriate class
+                const rowClass = `flex justify-between my-2 rounded-md p-1 ${
+                    isBlinking 
+                        ? (isIncrease ? 'blink-green' : 'blink-red')
+                        : ''
+                }`;
+
+                return (
                 <li key={index}>
-                    <div className="flex justify-between my-2">
-                        <span>{dex.name}</span>
+                    <div className={rowClass}>
+                        <a href={poolLink[dex.name]} target="_blank">
+                            <span>{dex.name}</span>
+                        </a>
                         <div className="flex items-center gap-2">
-                            <span className="text-white">{dex.price.toFixed(2)} {token.name}</span>
+                            <span className="text-white">{dex.price.toFixed(6)}</span>
                             <div onClick={() => handleDropDown(index)}>
                                 <ArrowDropDownCircleOutlinedIcon className="text-gray-500 transition-all ease duration-300 cursor-pointer" style={{fontSize: '1.25rem', transform: expandedIndexes.includes(index) ? 'rotate(180deg)' : 'rotate(0deg)'}}/>
                             </div>
                         </div>
                     </div>
+
                     <div className='transition-all duration-300 ease overflow-hidden' style={{ maxHeight: expandedIndexes.includes(index) ? '200px' : '0', opacity: expandedIndexes.includes(index) ? 1 : 0 }}>
                         <div className="flex justify-between flex-col gap-1 mt-2 text-xs text-zinc-400 bg-zinc-800 p-2 rounded group-hover:bg-zinc-700 transition-all duration-300 ease-in-out">
                             <div className="flex justify-between">
@@ -88,7 +154,7 @@ const CardDisplay: React.FC<{ token : Token }> = ({ token }) => {
                         <div className="my-2 border-t border-zinc-700"></div>
                     </div>
                 </li>
-            ))}
+            )})}
             </ul>
         </div>
     </div>

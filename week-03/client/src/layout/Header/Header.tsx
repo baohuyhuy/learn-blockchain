@@ -10,7 +10,7 @@ const Header = () => {
             
             const currentPos = window.scrollY;
             if (currentPos > prevPos) {
-                navBarRef.current.style.transform = 'translateY(-100%)'; // Hide the navbar
+                navBarRef.current.style.transform = 'translateY(-150%)'; // Hide the navbar
             } else {
                 navBarRef.current.style.transform = 'translateY(0)'; // Show the navbar
             }
@@ -25,7 +25,7 @@ const Header = () => {
     }, [prevPos]);
 
     return (
-        <nav className='w-full h-[70px] bg-[#30323b75] backdrop-blur-md flex justify-between items-center px-10 py-5 sticky top-0 z-50 transition duration-250 ease-in-out' ref={navBarRef}>
+        <nav className='w-[95%] h-[70px] bg-[#30323b75] backdrop-blur-sm flex justify-between items-center px-8 py-4 sticky top-4 mx-auto border border-1 border-zinc-600 rounded-lg z-50 transition duration-250 ease-in-out' ref={navBarRef}>
             <div className='text-2xl font-bold text-white'>
                 A Website
             </div>
