@@ -27,7 +27,7 @@ const Header = () => {
     return (
         <nav className='w-[95%] h-[70px] bg-[#30323b75] backdrop-blur-sm flex justify-between items-center px-8 py-4 sticky top-4 mx-auto border border-1 border-zinc-600 rounded-lg z-50 transition duration-250 ease-in-out' ref={navBarRef}>
             <div className='text-2xl font-bold text-white'>
-                A Website
+                Crypto
             </div>
             <ul className='flex space-x-10'>
                 <li className='text-white hover:underline cursor-pointer'>Home</li>

@@ -7,14 +7,10 @@ import { io, Socket } from 'socket.io-client';
 import {Token, Dex} from '../../config/interfaces';
 import MouseLight from './components/MouseLight';
 
-const findMinPrice = (dexes: Dex[]) => {
+const findMaxPrice = (dexes: Dex[]) => {
 	if (dexes.length === 0) return 0;
 	
-	return dexes.reduce((min, dex) => {
-		// Ignore dexes with price 0
-		if (dex.price === 0) return min;
-		return dex.price < min ? dex.price : min;
-	}, dexes[0].price);
+	return dexes.reduce((max, dex) => dex.price > max ? dex.price : max, dexes[0].price);
 }
 
 const platformOrder = ['Raydium', 'Orca', 'Meteora'];
@@ -107,7 +103,7 @@ const Home = () => {
 			}
 
 			const previousPrice = token.currentPrice;
-			const currentPrice = findMinPrice(token.dexes);
+			const currentPrice = findMaxPrice(token.dexes);
 			const priceChange = currentPrice - previousPrice;
 			const icon = updatedTokens[tokenIndex].icon == 'https://img-v1.raydium.io/icon/default.png' ? data.logoURI : updatedTokens[tokenIndex].icon;
 			// console.log(icon)
@@ -166,16 +162,6 @@ const Home = () => {
 		const pollingInterval = tokens.length * 4000;
 
 		console.log(`Starting monitoring for token: ${tokens}`);
-		// [raydiumSocketRef, orcaSocketRef, meteoraSocketRef].forEach(socketRef => {
-		// 	if (socketRef.current) {
-		// 		socketRef.current.emit('startMonitor', { tokens, pollingInterval });
-
-		// 		// Wait for a short time before starting the next socket
-
-		// 	} else {
-		// 		console.error('Socket.IO client is not initialized');
-		// 	}
-		// });
 
 		const dexRef = [raydiumSocketRef, orcaSocketRef, meteoraSocketRef];
 		  for (const socketRef of dexRef) {
@@ -187,7 +173,6 @@ const Home = () => {
 				console.error('Socket.IO client is not initialized');
 			}
 		}
-
     };
 
     const handleStopMonitoring = async () => {
@@ -209,7 +194,7 @@ const Home = () => {
         <div className="relative flex flex-col items-center justify-center min-h-screen p-4 pt-40 pb-20">
 			<MouseLight color="#ffffff" size={200} opacity={0.11} blur={40} />
 			<ScrollToTop />
-			<h1 className="text-[5rem] font-bold mb-2 bg-gradient-to-b from-white to-zinc-800 bg-clip-text text-transparent drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] relative">
+			<h1 className="text-[5rem] font-bold mb-2 bg-gradient-to-b from-white to-zinc-900 bg-clip-text text-transparent drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] relative">
 				<span className="absolute inset-0 text-[5rem] font-bold text-transparent -z-10" style={{
 					WebkitTextStroke: '1px rgba(255,255,255,0.3)'
 				}}>Token Price Monitor</span>

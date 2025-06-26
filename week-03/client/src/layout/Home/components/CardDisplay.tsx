@@ -3,7 +3,6 @@ import Masonry from "react-masonry-css";
 import ArrowDropDownCircleOutlinedIcon from '@mui/icons-material/ArrowDropDownCircleOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import { Token, Dex } from "../../../config/interfaces";
-
 import { RaydiumPoolURL, OrcaPoolURL, MeteoraPoolURL } from "../../../config/interfaces";
 
 const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-6)}`;
@@ -121,40 +120,41 @@ const CardDisplay: React.FC<{ token : Token }> = ({ token }) => {
                 }`;
 
                 return (
-                <li key={index}>
-                    <div className={rowClass}>
-                        <a href={poolLink[dex.name]} target="_blank">
-                            <span>{dex.name}</span>
-                        </a>
-                        <div className="flex items-center gap-2">
-                            <span className="text-white">{dex.price.toFixed(6)}</span>
-                            <div onClick={() => handleDropDown(index)}>
-                                <ArrowDropDownCircleOutlinedIcon className="text-gray-500 transition-all ease duration-300 cursor-pointer" style={{fontSize: '1.25rem', transform: expandedIndexes.includes(index) ? 'rotate(180deg)' : 'rotate(0deg)'}}/>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className='transition-all duration-300 ease overflow-hidden' style={{ maxHeight: expandedIndexes.includes(index) ? '200px' : '0', opacity: expandedIndexes.includes(index) ? 1 : 0 }}>
-                        <div className="flex justify-between flex-col gap-1 mt-2 text-xs text-zinc-400 bg-zinc-800 p-2 rounded group-hover:bg-zinc-700 transition-all duration-300 ease-in-out">
-                            <div className="flex justify-between">
-                                <span>TVL</span>
-                                <span className="font-semibold">${dex.tvl.toLocaleString()}</span>
-                            </div>
-                            <div className="my-1 border-t border-zinc-600"></div>
-                            <div className="flex justify-between">
-                                <span>Pool</span>
-                                <div>
-                                    <span className="font-semibold">{truncateAddress(dex.poolAddress)}</span>
-                                    <div className="inline-block ml-2 cursor-pointer" onClick={() => navigator.clipboard.writeText(token.address)}>
-                                        <ContentCopyOutlinedIcon className="inline-block" style={{ fontSize: '0.75rem' }} />
-                                    </div>
+                    <li key={index}>
+                        <div className={rowClass}>
+                            <a href={poolLink[dex.name]} target="_blank">
+                                <span>{dex.name}</span>
+                            </a>
+                            <div className="flex items-center gap-2">
+                                <span className="text-white">{dex.price.toFixed(6)}</span>
+                                <div onClick={() => handleDropDown(index)}>
+                                    <ArrowDropDownCircleOutlinedIcon className="text-gray-500 transition-all ease duration-300 cursor-pointer" style={{fontSize: '1.25rem', transform: expandedIndexes.includes(index) ? 'rotate(180deg)' : 'rotate(0deg)'}}/>
                                 </div>
                             </div>
                         </div>
-                        <div className="my-2 border-t border-zinc-700"></div>
-                    </div>
-                </li>
-            )})}
+
+                        <div className='transition-all duration-300 ease overflow-hidden' style={{ maxHeight: expandedIndexes.includes(index) ? '200px' : '0', opacity: expandedIndexes.includes(index) ? 1 : 0 }}>
+                            <div className="flex justify-between flex-col gap-1 mt-2 text-xs text-zinc-400 bg-zinc-800 p-2 rounded group-hover:bg-zinc-700 transition-all duration-300 ease-in-out">
+                                <div className="flex justify-between">
+                                    <span>TVL</span>
+                                    <span className="font-semibold">${dex.tvl.toLocaleString()}</span>
+                                </div>
+                                <div className="my-1 border-t border-zinc-600"></div>
+                                <div className="flex justify-between">
+                                    <span>Pool</span>
+                                    <div>
+                                        <span className="font-semibold">{truncateAddress(dex.poolAddress)}</span>
+                                        <div className="inline-block ml-2 cursor-pointer" onClick={() => navigator.clipboard.writeText(token.address)}>
+                                            <ContentCopyOutlinedIcon className="inline-block" style={{ fontSize: '0.75rem' }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="my-2 border-t border-zinc-700"></div>
+                        </div>
+                    </li>
+                )}
+            )}
             </ul>
         </div>
     </div>

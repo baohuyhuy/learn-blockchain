@@ -57,44 +57,17 @@ async function pollPoolData(monitor: PoolMonitor) {
 		} 
 		else if (monitor.poolType === 'clmm' || monitor.poolType === 'concentrated') {
 			// Handle CLMM pool
-			const sqrtPriceX64 = new Decimal(result.sqrtPriceX64 || '0');
-			const liquidity = new Decimal(result.liquidity || '0');
+			const poolPrice = new Decimal(result.price || '0');
 			const decimalsA = result.decimalsA;
 			const decimalsB = result.decimalsB;
 			const mintA = result.mintA;
 			const mintB = result.mintB;
 			
-			const Q64 = new Decimal(2).pow(64);
-			const sqrtPrice = new Decimal(sqrtPriceX64).div(Q64);
-			
-			const amountInSol = new Decimal(1);
-			const decimalsIn = decimalsA;
-			const decimalsOut = decimalsB;
-			
-			const amountInAtomic = amountInSol.mul(new Decimal(10).pow(decimalsIn));
-			const amountInAfterFee = amountInAtomic;
-			
-			const one = new Decimal(1);
-			
-			const sqrtPriceNew = one.div(
-				one.div(sqrtPrice).add(amountInAfterFee.div(liquidity))
-			);
-			
-			const deltaY = liquidity.mul(sqrtPriceNew.sub(sqrtPrice));
-			const amountOut = deltaY.div(new Decimal(10).pow(decimalsOut));
 			
 			if (mintA === SOL_MINT) {
-				price = new Decimal(amountOut.toString())
-				.div(new Decimal(amountInSol.toString()))
-				.mul(new Decimal(10).pow(decimalsIn - decimalsOut));
+				price = poolPrice
 			} else if (mintB === SOL_MINT) {
-				price = new Decimal(amountInSol.toString())
-				.div(new Decimal(amountOut.toString()))
-				.mul(new Decimal(10).pow(decimalsOut - decimalsIn));
-			}
-			
-			if (price) {
-				price = price.negated();
+				price =  new Decimal(1).div(poolPrice);
 			}
 		}
 		
