@@ -13,20 +13,27 @@ async function fetchHighestTVLPool(tokenMint: string): Promise<any> {
     if (data && data.data && data.data.length > 0) {
         const pool = data.data[0];
 
+        // Ensure mintA is SOL, mintB is token 
+        let mintA = pool.mintA;
+        let mintB = pool.mintB;
+        if (mintA.address !== SOL_MINT && mintB.address === SOL_MINT) {
+            [mintA, mintB] = [mintB, mintA];
+        }
+
         return {
             id: pool.id,
             type: pool.type.toLowerCase(), // Ensure type is in lowercase
-            logoURI: pool.mintB.logoURI,
+            logoURI: mintB.logoURI,
             tvl: pool.tvl.toString(),
             mintA: {
-                address: pool.mintA.address,
-                symbolName: pool.mintA.symbol.trim(),
-                decimals: pool.mintA.decimals
+                address: mintA.address,
+                symbolName: mintA.symbol.trim(),
+                decimals: mintA.decimals
             },
             mintB: {
-                address: pool.mintB.address,
-                symbolName: pool.mintB.symbol.trim(),
-                decimals: pool.mintB.decimals
+                address: mintB.address,
+                symbolName: mintB.symbol.trim(),
+                decimals: mintB.decimals
             }
         }
     } else {

@@ -5,24 +5,24 @@ import { SOL_MINT } from './CONSTANTS.js';
 import Decimal from 'decimal.js';
 
 // Set Decimal.js precision to 40 to handle large numbers accurately
-Decimal.set({precision: 40});
+Decimal.set({ precision: 40 });
 
 interface PoolMonitor {
-    poolId: string;
-    poolType: string;
-    poolLogoURI: string;
-    tvl: string;
-    mintA: string;
-    mintB: string;
-    decimalsA: number;
-    decimalsB: number;
-    mintASymbolName: string;
-    mintBSymbolName: string;
-    sqrtPriceX64?: string;
-    liquidity?: string;
-    client: Socket;
-    lastPrice?: number;
-    intervalId?: NodeJS.Timeout;
+	poolId: string;
+	poolType: string;
+	poolLogoURI: string;
+	tvl: string;
+	mintA: string;
+	mintB: string;
+	decimalsA: number;
+	decimalsB: number;
+	mintASymbolName: string;
+	mintBSymbolName: string;
+	sqrtPriceX64?: string;
+	liquidity?: string;
+	client: Socket;
+	lastPrice?: number;
+	intervalId?: NodeJS.Timeout;
 }
 
 // Store active monitors by client ID
@@ -31,22 +31,22 @@ const clientMonitors = new Map<string, PoolMonitor[]>();
 async function pollPoolData(monitor: PoolMonitor) {
 	try {
 		const result = await decodePoolWithNode(monitor.poolId, monitor.poolType);
-		
+
 		if (!result) {
 			console.error(`[Raydium] Failed to decode pool ${monitor.poolId}`);
 			return;
 		}
-		
+
 		let price: Decimal | undefined;
-		
+
 		if (monitor.poolType === 'classic' || monitor.poolType === 'standard') {
 			// Handle AMM pool
 			const mintA = result.mintA;
 			const mintB = result.mintB;
-			
+
 			const amountA = Decimal(result.mintAmountA || '0');
 			const amountB = Decimal(result.mintAmountB || '0');
-			
+
 			if (amountA > Decimal(0) && amountB > Decimal(0)) {
 				if (mintA === SOL_MINT) {
 					price = amountB.div(amountA);
@@ -54,7 +54,7 @@ async function pollPoolData(monitor: PoolMonitor) {
 					price = amountA.div(amountB);
 				}
 			}
-		} 
+		}
 		else if (monitor.poolType === 'clmm' || monitor.poolType === 'concentrated') {
 			// Handle CLMM pool
 			const poolPrice = new Decimal(result.price || '0');
@@ -62,20 +62,20 @@ async function pollPoolData(monitor: PoolMonitor) {
 			const decimalsB = result.decimalsB;
 			const mintA = result.mintA;
 			const mintB = result.mintB;
-			
-			
+
+
 			if (mintA === SOL_MINT) {
 				price = poolPrice
 			} else if (mintB === SOL_MINT) {
-				price =  new Decimal(1).div(poolPrice);
+				price = new Decimal(1).div(poolPrice);
 			}
 		}
-		
+
 		if (price) {
 			const numericPrice = Number(price);
-			
+
 			console.log(`[Raydium] Price update for ${monitor.mintBSymbolName}: ${numericPrice}`);
-			
+
 			monitor.client.emit('update', {
 				platform: 'Raydium',
 				poolAddress: monitor.poolId,
@@ -84,7 +84,7 @@ async function pollPoolData(monitor: PoolMonitor) {
 				tvl: Number(monitor.tvl),
 				mintB: monitor.mintB,
 			});
-			
+
 		}
 	} catch (error) {
 		console.error(`[Raydium] Error polling pool ${monitor.poolId}:`, error);
@@ -115,20 +115,37 @@ async function startMonitor(tokenMint: string, client: Socket, pollingInterval: 
 			return;
 		}
 
+		// Ensure mintA is SOL, mintB is token
+		let finalDecoded = decodedPool;
+		let finalMintASymbolName = mintASymbolName;
+		let finalMintBSymbolName = mintBSymbolName;
+		if (decodedPool.mintA !== SOL_MINT && decodedPool.mintB === SOL_MINT) {
+			finalDecoded = {
+				...decodedPool,
+				mintA: decodedPool.mintB,
+				mintB: decodedPool.mintA,
+				decimalsA: decodedPool.decimalsB,
+				decimalsB: decodedPool.decimalsA,
+
+			};
+			finalMintASymbolName = decodedPool.mintBSymbolName;
+			finalMintBSymbolName = decodedPool.mintASymbolName;
+		}
+
 		// Create the monitor object
 		const monitor: PoolMonitor = {
 			poolId,
 			poolType,
 			poolLogoURI,
 			tvl: poolTvl,
-			mintA: decodedPool.mintA,
-			mintB: decodedPool.mintB,
-			decimalsA: decodedPool.decimalsA,
-			decimalsB: decodedPool.decimalsB,
-			mintASymbolName,
-			mintBSymbolName,
-			sqrtPriceX64: decodedPool.sqrtPriceX64,
-			liquidity: decodedPool.liquidity,
+			mintA: finalDecoded.mintA,
+			mintB: finalDecoded.mintB,
+			decimalsA: finalDecoded.decimalsA,
+			decimalsB: finalDecoded.decimalsB,
+			mintASymbolName: finalMintASymbolName,
+			mintBSymbolName: finalMintBSymbolName,
+			sqrtPriceX64: finalDecoded.sqrtPriceX64,
+			liquidity: finalDecoded.liquidity,
 			client
 		};
 
@@ -154,17 +171,17 @@ async function startMonitor(tokenMint: string, client: Socket, pollingInterval: 
 async function stopMonitor(client: Socket) {
 	try {
 		const monitors = clientMonitors.get(client.id) || [];
-		
+
 		// Stop all intervals for this client
 		for (const monitor of monitors) {
 			if (monitor.intervalId) {
 				clearInterval(monitor.intervalId);
 			}
 		}
-		
+
 		// Remove client from map
 		clientMonitors.delete(client.id);
-		
+
 		console.log(`[Raydium] Stopped ${monitors.length} monitors for client: ${client.id}`);
 	} catch (error) {
 		console.error(`[Raydium] Error stopping monitors for client ${client.id}:`, error);
