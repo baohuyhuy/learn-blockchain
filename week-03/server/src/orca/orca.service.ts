@@ -16,6 +16,7 @@ interface PoolData {
   liquidity: number;
   tokenSymbol: string;
   tokenAddress: string;
+  imgURL: string;
 }
 
 interface PoolMonitor {
@@ -71,6 +72,7 @@ async function fetchPoolData(poolAddress: Address): Promise<PoolData> {
     liquidity: Number(data.liquidity),
     tokenSymbol: tokenA.symbol === "SOL" ? tokenB.symbol : tokenA.symbol,
     tokenAddress: tokenA.symbol === "SOL" ? tokenB.address : tokenA.address,
+    imgURL: tokenA.symbol === "SOL" ? tokenB.imageUrl : tokenA.imageUrl,
   };
 }
 
@@ -87,6 +89,7 @@ async function pollPoolData(monitor: PoolMonitor) {
       tvl: poolData.tvl,
       symbolName: poolData.tokenSymbol,
       mintB: poolData.tokenAddress,
+      logoURI: poolData.imgURL,
     });
     
   } catch (error) {

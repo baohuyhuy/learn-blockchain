@@ -78,7 +78,6 @@ async function pollPoolData(monitor: PoolMonitor) {
 			
 			monitor.client.emit('update', {
 				platform: 'Raydium',
-				logoURI: monitor.poolLogoURI,
 				poolAddress: monitor.poolId,
 				symbolName: monitor.mintBSymbolName,
 				price: numericPrice,
