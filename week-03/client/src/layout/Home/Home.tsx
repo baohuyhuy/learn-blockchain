@@ -111,8 +111,8 @@ const Home = () => {
 			updatedTokens[tokenIndex] = {
 				...token,
 				icon: icon,
-				name: data.symbolName,
-				address: data.mintB,
+				name: token.name || data.symbolName,
+				address: token.address || data.mintB,
 				currentPrice: currentPrice,
 				previousPrice: previousPrice,
 				priceChange: priceChange

@@ -144,7 +144,7 @@ const CardDisplay: React.FC<{ token : Token }> = ({ token }) => {
                                     <span>Pool</span>
                                     <div>
                                         <span className="font-semibold">{truncateAddress(dex.poolAddress)}</span>
-                                        <div className="inline-block ml-2 cursor-pointer" onClick={() => navigator.clipboard.writeText(token.address)}>
+                                        <div className="inline-block ml-2 cursor-pointer" onClick={() => navigator.clipboard.writeText(dex.poolAddress)}>
                                             <ContentCopyOutlinedIcon className="inline-block" style={{ fontSize: '0.75rem' }} />
                                         </div>
                                     </div>
