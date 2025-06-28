@@ -19,10 +19,14 @@ A real-time cryptocurrency price monitoring application that tracks token prices
   - Raydium SDK for Raydium DEX
   - Orca Whirlpools SDK for Orca DEX
   - Meteora SDK for Meteora DEX
-- **Architecture**: Gateway pattern for WebSocket connections
+- **Architecture**: Gateway pattern for Solana WebSocket connections
+
+## 📃 Project Flow
+1. **Frontend**: Gets token addresses from user input and establishes WebSocket connections to the backend.
+2. **Backend**: Listens for WebSocket events, fetches token data from the respective DEXes, and emits real-time updates to the frontend.
+3. **Frontend**: Receives updates and displays them in a responsive UI, showing token prices, changes, and pool information.
 
 ## 🚀 Features
-
 - **Real-time Price Monitoring**: Live price updates from multiple DEXes
 - **Multi-DEX Support**: Tracks prices across Raydium, Orca, and Meteora
 - **Price Change Visualization**: Shows price changes with visual indicators
@@ -30,6 +34,9 @@ A real-time cryptocurrency price monitoring application that tracks token prices
 - **Responsive Design**: Modern, clean interface with dark theme
 - **Token Search**: Search and monitor specific tokens by address
 - **Live WebSocket Connections**: Separate connections for each DEX platform
+
+## 📚 Real-time Price Monitoring Method
+Since there is no Websocket to get the price of tokens from DEXes, we retrieve the pool's information from the DEXes using Solana Mainnet WebSocket and calculate the price of the token using formulas (AMM, CLMM, DLMM, etc.).
 
 ## 📁 Project Main Structure
 
@@ -134,81 +141,6 @@ The frontend application will start on `http://localhost:3000`
    npm run start:prod
    ```
 
-## 🔧 Configuration
-
-### Environment Variables
-The application uses default configurations, but you can customize:
-
-- **Backend Port**: Default is `3001` (configured in `server/src/main.ts`)
-- **Frontend Port**: Default is `3000` (React default)
-
-### WebSocket Namespaces
-The backend uses separate WebSocket namespaces for each DEX:
-- `/raydium` - For Raydium DEX data
-- `/orca` - For Orca DEX data  
-- `/meteora` - For Meteora DEX data
-
-## 📡 API Endpoints & WebSocket Events
-
-### WebSocket Events
-
-#### Client → Server
-- `monitor-tokens`: Start monitoring a list of token addresses
-- `stop-monitoring`: Stop monitoring tokens
-
-#### Server → Client
-- `token-update`: Real-time token price and pool data updates
-
-### Data Structure
-```typescript
-interface Token {
-    icon: string;
-    name: string;
-    address: string;
-    currentPrice: number;
-    previousPrice: number;
-    priceChange: number;
-    dexes: Dex[];
-}
-
-interface Dex {
-    name: string;
-    prevPrice: number;
-    price: number;
-    tvl: number;
-    poolAddress: string;
-}
-```
-
-## 🧪 Testing
-
-### Frontend Testing
-```powershell
-cd client
-npm test
-```
-
-### Backend Testing
-```powershell
-cd server
-npm run test
-```
-
-## 🚀 Available Scripts
-
-### Frontend (Client)
-- `npm start` - Start development server
-- `npm run build` - Build for production
-- `npm test` - Run tests
-- `npm run eject` - Eject from Create React App
-
-### Backend (Server)
-- `npm run start:dev` - Start in development mode with hot reload
-- `npm run start` - Start in production mode
-- `npm run build` - Build the application
-- `npm run test` - Run unit tests
-- `npm run lint` - Run ESLint
-
 ## 🔍 Usage
 
 1. **Start Both Servers**: Make sure both frontend and backend are running
@@ -217,23 +149,19 @@ npm run test
 4. **View Pool Information**: Click on cards to see detailed pool information
 5. **Price Changes**: Green indicates price increases, red indicates decreases
 
-## 🐛 Troubleshooting
+## ⚠️ Limitations
 
-### Common Issues
+### Error 429: Too Many Requests
+This error occurs when the application exceeds the rate limit for Solana public RPC nodes per IP. To resolve this:
+- **Use a Private RPC Node**: Consider using a private Solana RPC provider (Helius, Quicknode, etc.) to avoid rate limits but costs may apply.
+- **Reduce Request Frequency**: Implement throttling or debouncing in the frontend to limit the number of requests sent to the backend.
+- **Implement polling**: Instead of sending requests for every price change, implement a polling mechanism to fetch updates at regular intervals.
 
-1. **WebSocket Connection Failed**:
-   - Ensure the backend server is running on port 3001
-   - Check that no firewall is blocking the connection
+### Other Considerations
+- **Network Latency**: Real-time updates may be affected by network conditions.
+- **Token Address Validity**: Ensure that the token addresses provided are valid and exist on the Solana blockchain.
 
-2. **Token Not Found**:
-   - Verify the token address is a valid Solana mint address
-   - Check if the token has pools on the supported DEXes
-
-3. **High Memory Usage**:
-   - This is normal when monitoring many tokens simultaneously
-   - Consider reducing the polling interval or number of monitored tokens
-
-## Web UI
+## 💻 Web UI
 The web UI is designed to be responsive and user-friendly, featuring a modern dark theme with a masonry grid layout. It allows users to easily add and monitor multiple tokens, view real-time price updates, and access detailed pool information.
 
 Here are some screenshots of the application:
@@ -249,7 +177,3 @@ Here are some screenshots of the application:
 ## 📄 License
 
 This project is for educational purposes as part of the blockchain learning series.
-
----
-
-**Note**: This application monitors live blockchain data and requires internet connectivity. Price data is fetched from Solana DEXes and may have slight delays depending on network conditions.
