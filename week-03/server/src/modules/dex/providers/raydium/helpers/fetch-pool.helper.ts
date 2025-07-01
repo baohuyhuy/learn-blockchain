@@ -1,7 +1,7 @@
-import { SOL_MINT } from "./CONSTANTS.js";
+import { BLOCKCHAIN_CONSTANTS } from "../../../../../core/constants/blockchain.constants";
 
 async function fetchHighestTVLPool(tokenMint: string): Promise<any> {
-    const response = await fetch(`https://api-v3.raydium.io/pools/info/mint?mint1=${SOL_MINT}&mint2=${tokenMint}&poolType=all&poolSortField=liquidity&sortType=desc&pageSize=1&page=1`);
+    const response = await fetch(`https://api-v3.raydium.io/pools/info/mint?mint1=${BLOCKCHAIN_CONSTANTS.SOL_MINT}&mint2=${tokenMint}&poolType=all&poolSortField=liquidity&sortType=desc&pageSize=1&page=1`);
 
     if (!response.ok) {
         throw new Error(`Error fetching pool data: ${response.statusText}`);
@@ -16,7 +16,7 @@ async function fetchHighestTVLPool(tokenMint: string): Promise<any> {
         // Ensure mintA is SOL, mintB is token 
         let mintA = pool.mintA;
         let mintB = pool.mintB;
-        if (mintA.address !== SOL_MINT && mintB.address === SOL_MINT) {
+        if (mintA.address !== BLOCKCHAIN_CONSTANTS.SOL_MINT && mintB.address === BLOCKCHAIN_CONSTANTS.SOL_MINT) {
             [mintA, mintB] = [mintB, mintA];
         }
 

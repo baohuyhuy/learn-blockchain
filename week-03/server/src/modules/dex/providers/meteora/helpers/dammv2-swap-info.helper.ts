@@ -3,7 +3,8 @@ import { CpAmm, getPriceFromSqrtPrice } from "@meteora-ag/cp-amm-sdk";
 import { getMint } from "@solana/spl-token";
 import { BN } from "bn.js";
 import BigNumber from "bignumber.js";
-import { SOL_MINT, DAMM_API_URL, connection, DAMMPoolData } from "./types";
+import { SOL_MINT, DAMM_API_URL, connection } from "../constants/meteora.constant";
+import { IDAMMPoolData } from "../interfaces/meteora.interface";
 
 // This class tracks prices from DAMMv2 pools on Meteora
 export class DAMMPriceTracker {
@@ -16,8 +17,8 @@ export class DAMMPriceTracker {
   }
 
   // Method to fetch all SOL-token pools from DAMMv2 API
-  private async fetchSolTokenPools(): Promise<DAMMPoolData[]> {
-    const matchedPools: DAMMPoolData[] = [];
+  private async fetchSolTokenPools(): Promise<IDAMMPoolData[]> {
+    const matchedPools: IDAMMPoolData[] = [];
     const seenPoolIds = new Set<string>();
 
     for (const field of ["token_a_mint", "token_b_mint"]) {
@@ -36,7 +37,7 @@ export class DAMMPriceTracker {
           const response = await fetch(`${DAMM_API_URL}?${params.toString()}`);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-          const { data: pools } = await response.json() as { data: DAMMPoolData[] };
+          const { data: pools } = await response.json() as { data: IDAMMPoolData[] };
           if (pools.length === 0) break;
 
           for (const pool of pools) {
@@ -60,7 +61,7 @@ export class DAMMPriceTracker {
   }
 
   // Method to find the pool with the highest TVL in DAMMv2 pools
-  private findHighestTvlPool(pools: DAMMPoolData[]): DAMMPoolData | null {
+  private findHighestTvlPool(pools: IDAMMPoolData[]): IDAMMPoolData | null {
     return pools.length > 0 ? pools.reduce((max, curr) =>
       parseFloat(curr.tvl || "0") > parseFloat(max.tvl || "0") ? curr : max
     ) : null;
@@ -73,7 +74,7 @@ export class DAMMPriceTracker {
     if (!pool) return { error: "No DAMM SOL-token pool found." };
 
   }
-  async getPriceByPool(pool: DAMMPoolData): Promise<any> {
+  async getPriceByPool(pool: IDAMMPoolData): Promise<any> {
     try {
       const poolState = await this.cpAmm.fetchPoolState(new PublicKey(pool.pool_address));
       if (!poolState || Object.keys(poolState).length === 0) {

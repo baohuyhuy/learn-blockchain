@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-
-import { RaydiumGateway, OrcaGateway, Meteora } from './account/account.gateway';
+import { DexModule } from './modules/dex/dex.module';
 
 @Module({
-  imports: [],
+  imports: [DexModule],
   controllers: [AppController],
-  providers: [AppService, RaydiumGateway, OrcaGateway, Meteora],
+  providers: [AppService],
 })
 export class AppModule {}

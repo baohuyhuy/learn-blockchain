@@ -3,7 +3,8 @@ import { getMint } from "@solana/spl-token";
 import DLMM from "@meteora-ag/dlmm";
 import { BN } from "bn.js";
 import BigNumber from "bignumber.js";
-import { SOL_MINT, DLMM_API_URL, connection, DLMMPoolData } from "./types";
+import { SOL_MINT, DLMM_API_URL, connection } from "../constants/meteora.constant";
+import { IDLMMPoolData } from "../interfaces/meteora.interface";
 
 // This class tracks prices from DLMM pools on Meteora
 export class DLMMPriceTracker {
@@ -14,8 +15,8 @@ export class DLMMPriceTracker {
   }
 
   // Method to fetch all SOL-token pools from DLMM API
-  private async fetchSolTokenPools(): Promise<DLMMPoolData[]> {
-    const matchedPools: DLMMPoolData[] = [];
+  private async fetchSolTokenPools(): Promise<IDLMMPoolData[]> {
+    const matchedPools: IDLMMPoolData[] = [];
     const tokenAddressStr = this.tokenAddress.toBase58().toLowerCase().trim();
     const solAddressStr = SOL_MINT.toBase58().toLowerCase();
 
@@ -23,7 +24,7 @@ export class DLMMPriceTracker {
       const response = await fetch(DLMM_API_URL);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      const allPools: DLMMPoolData[] = await response.json();
+      const allPools: IDLMMPoolData[] = await response.json();
 
       for (const pool of allPools) {
         const mintX = pool.mint_x.toLowerCase().trim();
@@ -48,7 +49,7 @@ export class DLMMPriceTracker {
   }
 
   // Method to find the pool with the highest liquidity in DLMM pools
-  private findHighestLiquidityPool(pools: DLMMPoolData[]): DLMMPoolData | null {
+  private findHighestLiquidityPool(pools: IDLMMPoolData[]): IDLMMPoolData | null {
     if (pools.length === 0) return null;
     
     return pools.reduce((max, curr) => {
@@ -77,7 +78,7 @@ export class DLMMPriceTracker {
 
   }
 
-  async getPriceByPool(pool: DLMMPoolData):  Promise<any> {
+  async getPriceByPool(pool: IDLMMPoolData):  Promise<any> {
     try {
       const pairAddress = new PublicKey(pool.address);
       const dlmmPool = await DLMM.create(connection, pairAddress);

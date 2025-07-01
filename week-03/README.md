@@ -42,24 +42,28 @@ Since there is no Websocket to get the price of tokens from DEXes, we retrieve t
 
 ```
 week-03/
-├── client/                 # React frontend application
+├── client/                     # React frontend application
 │   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   ├── config/         # TypeScript interfaces and constants
-│   │   ├── layout/         # Layout components (Header, Home)
-│   │   └── App.tsx         # Main application component
-│   ├── package.json        # Frontend dependencies
-│   └── tailwind.config.js  # Tailwind CSS configuration
+│   │   ├── components/         # Reusable UI components
+│   │   ├── config/             # TypeScript interfaces and constants
+│   │   ├── pages/              # Page components
+│   │   └── App.tsx             # Main application component
+│   ├── package.json            # Frontend dependencies
+│   └── tailwind.config.js      # Tailwind CSS configuration
 │
-└── server/                 # NestJS backend application
+└── server/                     # NestJS backend application
     ├── src/
-    │   ├── account/        # WebSocket gateways for each DEX
-    │   ├── raydium/        # Raydium DEX integration
-    │   ├── orca/           # Orca DEX integration
-    │   ├── meteora/        # Meteora DEX integration
-    │   └── main.ts         # Application entry point
-    ├── package.json        # Backend dependencies
-    └── nest-cli.json       # NestJS CLI configuration
+    │   ├── core/               # Core utilities and interfaces
+    │   |   ├── constants/      # Core constants (DEX names, token types)
+    │   │   ├── interfaces/     # Core interfaces (IDexProvider, IToken)
+    │   │   └── utils/          # Core utility functions
+    │   ├── modules/            # NestJS modules (dex, tokens)
+    │   │   ├── dex/            # DEX module with providers and gateways
+    │   │   │   ├── gateways/   # WebSocket gateways for each DEX
+    │   │   │   ├── providers/  # DEX-specific providers (Raydium, Orca, Meteora)
+    │   │   │   └── services/   # DEX services for business logic
+    ├── package.json            # Backend dependencies
+    └── nest-cli.json           # NestJS CLI configuration
 ```
 
 ## 🛠️ Prerequisites

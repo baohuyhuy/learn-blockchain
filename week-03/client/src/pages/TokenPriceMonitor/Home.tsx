@@ -191,34 +191,42 @@ const Home = () => {
     };
 
     return (
-        <div className="relative flex flex-col items-center justify-center min-h-screen p-4 pt-40 pb-20">
-			<MouseLight color="#ffffff" size={200} opacity={0.11} blur={40} />
-			<ScrollToTop />
-			<h1 className="text-[5rem] font-bold mb-2 bg-gradient-to-b from-white to-zinc-900 bg-clip-text text-transparent drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] relative">
-				<span className="absolute inset-0 text-[5rem] font-bold text-transparent -z-10" style={{
-					WebkitTextStroke: '1px rgba(255,255,255,0.3)'
-				}}>Token Price Monitor</span>
-				Token Price Monitor
-			</h1>
-			<p className="text-lg text-zinc-400 mb-20">
-				Monitor the best prices for your favorite tokens across multiple DEXes.
-			</p>
-			<Input onStartMonitoring={handleStartMonitoring} onStopMonitoring={handleStopMonitoring} />
-			<div className="">
-				{tokens.length > 0 ? (
-					<>
-						<h1 className="text-2xl font-semibold text-white mb-4 ml-0 mr-auto">
-							Available Tokens
-						</h1>
-						<CardDisplayList tokens={tokens} />
-					</>
-				) : (
-					<div className="text-lg text-zinc-500">
-						No tokens being monitored. Please start monitoring tokens.
-					</div>
-				)}
+		<>
+			<div className="absolute top-20 -translate-y-1/2 left-1/2 -translate-x-1/2 w-[150%] h-[150%]
+                bg-[radial-gradient(closest-side,rgba(255,255,255,0.5)_0%,transparent_80%)] z-10" style={{ pointerEvents: 'none' }} 
+            />
+			{/* <div className="absolute top-10 -translate-y-1/2 left-1/2 -translate-x-1/2 w-[80%] h-[80%]
+                bg-[radial-gradient(closest-side,rgba(255,255,255,0.5)_0%,transparent_80%)] z-10" style={{ pointerEvents: 'none' }} 
+            /> */}
+			<div className="relative flex flex-col items-center justify-center min-h-screen p-4 pt-40 pb-20">
+				<MouseLight color="#ffffff" size={200} opacity={0.11} blur={40} />
+				<ScrollToTop />
+				<h1 className="text-[5rem] font-bold mb-2 bg-gradient-to-b from-white to-zinc-900 bg-clip-text text-transparent drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] relative">
+					<span className="absolute inset-0 text-[5rem] font-bold text-transparent -z-10" style={{
+						WebkitTextStroke: '1px rgba(255,255,255,0.3)'
+					}}>Token Price Monitor</span>
+					Token Price Monitor
+				</h1>
+				<p className="text-lg text-zinc-400 mb-20">
+					Monitor the best prices for your favorite tokens across multiple DEXes.
+				</p>
+				<Input onStartMonitoring={handleStartMonitoring} onStopMonitoring={handleStopMonitoring} />
+				<div className="">
+					{tokens.length > 0 ? (
+						<>
+							<h1 className="text-2xl font-semibold text-white mb-4 ml-0 mr-auto">
+								Available Tokens
+							</h1>
+							<CardDisplayList tokens={tokens} />
+						</>
+					) : (
+						<div className="text-lg text-zinc-500">
+							No tokens being monitored. Please start monitoring tokens.
+						</div>
+					)}
+				</div>
 			</div>
-		</div>
+		</>
     )
 }
 

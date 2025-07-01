@@ -1,9 +1,9 @@
 import { PoolInfoLayout, LIQUIDITY_STATE_LAYOUT_V4, SqrtPriceMath } from "@raydium-io/raydium-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { SOLANA_MAINNET_HTTP } from "./CONSTANTS";
+import { BLOCKCHAIN_CONSTANTS } from "../../../../../core/constants/blockchain.constants";
 
 async function decodePoolWithNode(poolId: string, poolType: string): Promise<any> {
-    const connection = new Connection(SOLANA_MAINNET_HTTP, "finalized");
+    const connection = new Connection(BLOCKCHAIN_CONSTANTS.SOLANA_MAINNET_RPC, "finalized");
 
     const accountInfo = await connection.getAccountInfo(new PublicKey(poolId));
     if (!accountInfo) {
