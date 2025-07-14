@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>CoinVista - Crypto Trading Charts & RSI Analysis</title>
+        <link rel="stylesheet" href="assets/css/main.css" />
+    </head>
+    <body>
+        <header>
+            <a id="site-logo" href="#" data-route="/">COINVISTA</a>
+            <nav class="main-nav">
+                <a href="#" data-route="/" class="nav-link active">Chart</a>
+                <a href="#" data-route="/rsi-14" class="nav-link">RSI-14</a>
+            </nav>
+            <input type="search" placeholder="Search symbols (e.g. BTC, AAPL, BINANCE:ETHUSDT)..." />
+        </header>
+        <nav id="ticker-tape">
+            <!-- TradingView Widget BEGIN -->
+            <div class="tradingview-widget-container">
+                <div class="tradingview-widget-container__widget"></div>
+            </div>
+            <!-- TradingView Widget END -->
+        </nav>
+        <main>
+            <section id="symbol-info">
+                <!-- TradingView Widget BEGIN -->
+                <div class="tradingview-widget-container">
+                    <div class="tradingview-widget-container__widget">
+                        <div class="loading">Loading symbol info...</div>
+                    </div>
+                </div>
+                <!-- TradingView Widget END -->
+            </section>
+            <section id="advanced-chart">
+                <!-- TradingView Widget BEGIN -->
+                <div class="tradingview-widget-container" style="height:100%;width:100%">
+                <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%">
+                    <div class="loading">Loading chart...</div>
+                </div>
+                </div>
+                <!-- TradingView Widget END -->
+            </section>
+        </main>
+
+        <script type="module" src="assets/js/main.js"></script>
+    </body>
+</html>

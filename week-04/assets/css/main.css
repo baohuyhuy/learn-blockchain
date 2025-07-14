@@ -1,0 +1,250 @@
+:root {
+    --gap-size: 32px;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS',
+        Roboto, Ubuntu, sans-serif;
+    color: #000;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #fff;
+}
+
+header,
+footer {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.05);
+    gap: 12px;
+}
+
+header {
+    justify-content: space-between;
+    padding: 0 var(--gap-size);
+    gap: calc(var(--gap-size) * 0.5);
+    box-shadow: rgba(0, 0, 0, 0.05) 0 2px 6px 0;
+    flex-direction: row;
+    z-index: 1;
+    align-items: center;
+}
+
+header #site-logo {
+    font-weight: 600;
+    font-size: 32px;
+    padding: 16px 0;
+    background: var(
+        --18-promo-gradient-02,
+        linear-gradient(90deg, #00bce5 0%, #2962ff 100%)
+    );
+    -webkit-text-fill-color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.main-nav {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex: 1;
+    justify-content: center;
+}
+
+.nav-link {
+    padding: 12px 20px;
+    text-decoration: none;
+    color: #666;
+    font-weight: 500;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+    position: relative;
+    background: transparent;
+}
+
+.nav-link:hover {
+    color: #2962ff;
+    background: rgba(41, 98, 255, 0.08);
+    transform: translateY(-1px);
+}
+
+.nav-link.active {
+    color: #fff;
+    background: linear-gradient(135deg, #2962ff 0%, #00bce5 100%);
+    box-shadow: 0 4px 15px rgba(41, 98, 255, 0.3);
+}
+
+.nav-link.active:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(41, 98, 255, 0.4);
+}
+
+header input[type='search'] {
+    padding: 12px 20px;
+    width: 100%;
+    height: 44px;
+    max-width: 300px;
+    border: 2px solid #e1e5e9;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+header input[type='search']:focus {
+    outline: none;
+    border-color: #2962ff;
+    box-shadow: 0 0 0 3px rgba(41, 98, 255, 0.1);
+}
+
+footer {
+    flex-direction: column;
+    padding: calc(var(--gap-size) * 0.5) var(--gap-size);
+    margin-top: var(--gap-size);
+    border-top: solid 2px rgba(0, 0, 0, 0.1);
+    justify-content: center;
+}
+
+footer p,
+#powered-by-tv p {
+    margin: 0;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.6);
+}
+
+main {
+    display: grid;
+    width: 100%;
+    padding: 0 calc(var(--gap-size) * 0.5);
+    max-width: 960px;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: var(--gap-size);
+}
+
+.span-full-grid,
+#symbol-info,
+#advanced-chart,
+#company-profile,
+#fundamental-data {
+    grid-column: span 2;
+}
+
+.span-one-column,
+#technical-analysis,
+#top-stories,
+#powered-by-tv {
+    grid-column: span 1;
+}
+
+#ticker-tape {
+    width: 100%;
+    margin-bottom: var(--gap-size);
+}
+
+#advanced-chart {
+    height: 500px;
+}
+
+#company-profile {
+    height: 390px;
+}
+
+#fundamental-data {
+    height: 490px;
+}
+
+#technical-analysis,
+#top-stories {
+    height: 425px;
+}
+
+#powered-by-tv {
+    display: flex;
+    background: #f8f9fd;
+    border: solid 1px #e0e3eb;
+    text-align: justify;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 14px;
+    padding: 16px;
+    border-radius: 6px;
+}
+
+#powered-by-tv a,
+#powered-by-tv a:visited {
+    color: #2962ff;
+}
+
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
+    color: #666;
+}
+
+.error {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
+    color: #e74c3c;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.error button {
+    padding: 8px 16px;
+    background: #2962ff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.error button:hover {
+    background: #1e4fb8;
+}
+
+/* Responsive Navigation */
+@media (max-width: 800px) {
+    header {
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+    }
+    
+    header #site-logo {
+        font-size: 24px;
+        padding: 8px 0;
+    }
+    
+    .main-nav {
+        width: 100%;
+        justify-content: space-around;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .nav-link {
+        padding: 8px 12px;
+        font-size: 14px;
+        flex: 1;
+        text-align: center;
+        min-width: 70px;
+    }
+    
+    header input[type='search'] {
+        max-width: 100%;
+    }
+}
