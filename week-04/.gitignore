@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Jupyter
+*.ipynb_checkpoints
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.venv/
+venv/
+
+# Logs
+*.log
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Misc
+*.sqlite3
+*.db
+*.bak
+
+# CCXT cache
+ccxt.cache.json
+
+# Ignore requirements lock
+requirements.lock
+
+# Ignore test coverage
+htmlcov/
+.coverage
+
+# Ignore node_modules (if any)
+node_modules/
+
+# Ignore compiled UI files
+*.ui.py
+
+# Ignore config
+config.json
