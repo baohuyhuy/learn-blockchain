@@ -416,7 +416,7 @@ class BaseMenu(TableView):
                 for index, symbol in enumerate(dict_data):
                     symbol_icon = get_symbol_icon(symbol)
                     symbol_icon_path = CI.crypto_url(symbol_icon)
-                    dict_favorites = self.dict_favorites.get(self.exchange_id, [])
+                    dict_favorites = (self.dict_favorites or {}).get(self.exchange_id, [])
                     if dict_favorites != []:
                         if symbol in dict_favorites:
                             state = Qt.CheckState.Checked
